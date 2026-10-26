@@ -1,0 +1,1077 @@
+<title>DIMAS Tag</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: analysis console in the Dimas HUB visual system (white, black, greys, purple action color). */
+:root{
+  --bg:#f7f7f7; --surface:#ffffff; --surface-2:#f0f0f0; --line:#e3e3e3;
+  --fg:#000000; --muted:#737373; --accent:#9b65c5; --accent-fg:#ffffff; --accent-dark:#512465;
+  --live:#e5533d; --brand2:#9b65c5; --warn:#9a3412; --ok:#16a34a;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 8px 24px -12px rgba(0,0,0,.18);
+  --f-display:"Saira Condensed","Arial Narrow",Impact,sans-serif;
+  --f-body:"Inter","Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d0d0d; --surface:#161616; --surface-2:#202020; --line:#2c2c2c;
+  --fg:#f5f5f5; --muted:#9a9a9a; --accent:#b58ad6; --accent-fg:#141414; --accent-dark:#9b65c5;
+  --live:#ff7a66; --brand2:#b58ad6; --warn:#fed7aa; --ok:#3ec27a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d0d0d; --surface:#161616; --surface-2:#202020; --line:#2c2c2c;
+  --fg:#f5f5f5; --muted:#9a9a9a; --accent:#b58ad6; --accent-fg:#141414; --accent-dark:#9b65c5;
+  --live:#ff7a66; --brand2:#b58ad6; --warn:#fed7aa; --ok:#3ec27a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6); color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;text-wrap:balance;margin:0}
+h2{text-transform:uppercase;letter-spacing:.04em;font-weight:800}
+.eyebrow{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.08em;font-size:13px;font-weight:700;color:var(--muted)}
+.muted{color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;font-size:13px;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent;font-weight:600}
+.btn.primary:hover{background:var(--accent-dark);color:#fff}
+.btn.danger{color:var(--live)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:7px 10px;width:100%;min-width:0;font-size:13px}
+textarea{resize:vertical;min-height:60px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+label.f>span{font-weight:600}
+
+/* ---------- start screen ---------- */
+.home-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-block:12px 24px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.brand{display:flex;align-items:center;gap:14px}
+.brand svg{flex:none}
+.brand h1{font-size:36px;line-height:1;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.brand h1 .hub{color:var(--brand2)}
+.brand p{margin:4px 0 0;color:var(--muted)}
+.home-grid{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.home-grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.panel h2{font-size:22px;margin-bottom:12px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;padding:6px 16px;border-radius:999px;cursor:pointer;font-family:var(--f-display);font-size:15px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+.stack{display:flex;flex-direction:column;gap:12px}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;cursor:pointer}
+.item:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(0,0,0,.06),0 16px 32px -14px rgba(0,0,0,.28)}
+.item{box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+.item h3{font-size:20px;overflow-wrap:anywhere}
+.item .meta{font-size:13px;color:var(--muted)}
+.typebadge{font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:3px 7px}
+.typebadge.jogo{background:var(--accent);color:var(--accent-fg)}
+.typebadge.treino{background:var(--fg);color:var(--bg)}
+.pill{display:inline-block;font-size:12px;border-radius:99px;padding:1px 8px;background:var(--surface-2);color:var(--muted);font-weight:600}
+.pill.live{background:var(--accent);color:var(--accent-fg)}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:28px;text-align:center;color:var(--muted)}
+
+/* ---------- analysis screen ---------- */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.topbar .wrap{padding-block:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar h1{font-size:26px;flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.savestate{font-size:12px;color:var(--muted)}
+.an-main{max-width:1100px}
+.an-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;align-items:start}
+.drawer-bg{position:fixed;inset:0;z-index:14;background:rgba(0,0,0,.35)}
+.drawer{position:fixed;top:0;right:0;bottom:0;z-index:15;width:min(960px,100%);background:var(--bg);box-shadow:-12px 0 32px rgba(0,0,0,.25);padding:calc(12px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) 12px;overflow:hidden;display:flex;flex-direction:column}
+.drawer .log{display:flex;flex-direction:column;flex:1;min-height:0}
+.drawer .log-scroll{max-height:none;flex:1}
+.drawer-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:12px 12px 10px;border-bottom:1px solid var(--line)}
+.clocks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.clocks.one{grid-template-columns:minmax(0,1fr)}
+.clocks.one .clock{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"row row row" "time name sync" "time ctrls sync";column-gap:24px;align-items:center}
+.themebtn{width:36px;height:36px;padding:0!important;border-radius:50%;flex:none}
+.themebtn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn.sync{border-color:var(--fg);font-weight:600}
+.btn.sync .kk{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.sw.sync{background:var(--fg)!important;border-radius:50%}
+.clocks.one .row{grid-area:row}.clocks.one .time{grid-area:time;font-size:clamp(44px,7vw,64px)}.clocks.one .sessname{grid-area:name}.clocks.one .ctrls{grid-area:ctrls}
+@media (max-width:560px){.clocks.one .clock{grid-template-columns:minmax(0,1fr);grid-template-areas:"row" "time" "name" "ctrls" "sync"}}
+@media (max-width:520px){.clocks{grid-template-columns:minmax(0,1fr)}}
+.clock{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.clock.running{border-color:var(--accent)}
+.clock .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.clock .time{font-family:var(--f-mono);font-weight:700;font-size:clamp(34px,5vw,48px);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.clock .sub{font-size:13px;color:var(--muted);min-height:1.4em}
+.clock .ctrls{display:flex;gap:8px;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
+.running .dot{background:var(--live);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.running .dot,.tagbtn.open{animation:none!important}}
+.sessname{display:flex;gap:6px}
+.sessname select,.sessname input{flex:1}
+.section-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 10px;flex-wrap:wrap}
+.section-h h2{font-size:22px}
+.pad{display:flex;flex-direction:column;gap:16px}
+.pad-inner{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+@media (pointer:coarse){.pad-inner{gap:12px}.tagbtn{min-height:88px}.btn{padding:10px 16px}.btn.sm{padding:8px 12px}}
+.padgrp{display:flex;flex-direction:column;gap:8px}
+.padgrp .eyebrow{padding-bottom:4px;border-bottom:1px solid var(--line)}
+.tagbtn{position:relative;min-height:72px;border-radius:8px;border:0;cursor:pointer;color:#111;padding:10px 12px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:6px;font-family:var(--f-display);font-size:20px;font-weight:700;line-height:1.05;letter-spacing:.01em;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18);transition:transform .06s}
+.action-row{margin-bottom:4px}
+.qp.rate .col{background:#d4d4d8}.qp.rate .ind{background:#bfdbfe}
+.tagbtn:active,.tagbtn.flash{transform:scale(.97);filter:brightness(1.15)}
+.tagbtn .k{position:absolute;top:8px;right:8px;font-family:var(--f-mono);font-size:11px;background:rgba(127,127,127,.3);color:inherit;border-radius:4px;padding:1px 6px}
+.tagbtn .m{font-family:var(--f-body);font-size:11.5px;font-weight:500;opacity:.75}
+.tagbtn.open{outline:2px solid var(--fg);outline-offset:0;box-shadow:0 0 0 3px rgba(229,83,61,.35);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 3px rgba(229,83,61,.05)}}
+.tagbtn .name{overflow-wrap:break-word;hyphens:auto;font-size:18px}
+.hint{font-size:13px;color:var(--muted);margin-top:8px}
+details.data{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+details.data summary{cursor:pointer;padding:12px 16px;font-family:var(--f-display);font-size:20px;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:8px}
+details.data summary::-webkit-details-marker{display:none}
+details.data summary::after{content:"+";color:var(--muted)}
+details.data[open] summary::after{content:"–"}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 16px 16px}
+.fields .full{grid-column:1/-1}
+@media (max-width:420px){.fields{grid-template-columns:1fr}}
+.log{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.log-scroll{max-height:520px;overflow:auto}
+.log-scroll table{min-width:900px}
+.log-scroll td input{min-width:90px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 10px;font-weight:600;border-bottom:1px solid var(--line);z-index:1}
+td{border-top:1px solid var(--line);padding:6px 10px;vertical-align:middle}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+td .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+td input{padding:4px 6px;font-size:13px}
+.counts{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.counts span{font-size:12px;background:var(--surface-2);border-radius:99px;padding:2px 9px}
+.counts b{font-family:var(--f-mono)}
+
+/* ---------- overlay ---------- */
+#ovroot2 .ov{z-index:25}
+.crop{display:flex;flex-direction:column;gap:12px;align-items:center}
+.crop canvas{width:min(280px,80vw);height:min(280px,80vw);border-radius:50%;border:1px solid var(--line);cursor:grab;touch-action:none;background:var(--surface-2)}
+.crop canvas.drag{cursor:grabbing}
+.crop .zoom{display:flex;gap:10px;align-items:center;width:min(280px,80vw)}
+.crop .zoom input{flex:1}
+.crop .bgs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.crop .bgs button{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.crop .bgs button[aria-pressed=true]{border-color:var(--fg);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+.crop .bgs input[type=color]{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);padding:0;background:none;cursor:pointer}
+.ov{position:fixed;inset:0;z-index:20;background:rgba(8,14,10,.55);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:max(24px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 24px max(12px,env(safe-area-inset-left,0px))}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:14px;width:min(920px,100%);padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
+.modal h2{font-size:24px}
+.modal .foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.btable{overflow-x:auto}
+.btable table{min-width:860px}
+.btable td{padding:5px 6px}
+.btable input[type=color]{width:38px;height:32px;padding:0;border:1px solid var(--line);border-radius:6px;background:none}
+.btable input.key{width:52px;text-align:center;text-transform:uppercase}
+.btable input.n{width:64px}
+pre.xml{background:var(--surface-2);border-radius:8px;padding:12px;font-family:var(--f-mono);font-size:12px;max-height:340px;overflow:auto;margin:0;white-space:pre}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-weight:600;z-index:30;max-width:calc(100% - 32px)}
+.qp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.qp button{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:10px 12px;cursor:pointer;text-align:left;min-width:0;font-weight:500}
+.qp button:hover{border-color:var(--accent)}
+.qp button .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qp button .nr{font-size:11px;color:var(--muted);display:block;white-space:nowrap}
+.qp button .kk{font-family:var(--f-mono);font-size:11px;color:var(--muted);flex:none}
+.qp.qpath{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.qp.qpath button{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;background:var(--surface)}
+.qp.qpath .av{width:100%;height:auto;aspect-ratio:1;border-radius:0;font-size:34px;background:var(--surface-2)}
+.qp.qpath .nm{padding:8px 8px 9px;text-align:center;white-space:normal;line-height:1.15;font-size:14px;font-weight:600}
+.qp-grp{margin:14px 0 6px;font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px}
+.qp-grp:first-child{margin-top:0}
+.qp.rate{grid-template-columns:1fr 1fr}
+.qp.rate button{justify-content:center;min-height:72px;font-family:var(--f-display);font-size:22px;font-weight:700;letter-spacing:.02em;color:#111}
+.qp.rate .pos{background:#86efac}.qp.rate .adj{background:#fdba74}
+.pitchwrap{display:flex;flex-direction:column;gap:8px;align-items:center}
+.pitch{width:100%;max-width:560px;aspect-ratio:105/68;display:block;border-radius:6px;cursor:crosshair;touch-action:none;background:#2f8f4e}
+.pitch line,.pitch rect,.pitch circle.l,.pitch path{stroke:#eaf5ec;stroke-width:.6;fill:none}
+.pitch .mark{fill:var(--accent);stroke:#fff;stroke-width:.8}
+.pitch .arrow{fill:rgba(255,255,255,.35);stroke:none}
+.coord{font-family:var(--f-mono);font-size:13px;color:var(--muted);min-height:1.4em}
+.qp-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.qp-h .tagname{font-family:var(--f-display);font-weight:700;font-size:16px;padding:3px 10px;border-radius:4px;color:#111}
+.athstrip{display:none}
+.ath{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:5px 11px;cursor:pointer;font-size:14px;font-weight:600;display:inline-flex;gap:6px;align-items:center}
+.av{width:24px;height:24px;border-radius:50%;object-fit:cover;flex:none;background:var(--surface-2);display:inline-grid;place-items:center;font-size:11px;font-weight:700;color:var(--muted);overflow:hidden}
+.av.lg{width:44px;height:44px;font-size:15px}
+.ath.hasav{padding-left:4px}
+.photo-cell{display:flex;align-items:center;gap:6px}
+.photo-cell label{cursor:pointer}
+.ath .nr{font-size:11px;color:var(--muted);font-weight:500}
+.ath[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+.ath[aria-pressed=true] .nr{color:inherit;opacity:.75}
+.athcell{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.athcell .tagath{font-size:12px;background:var(--surface-2);border-radius:99px;padding:1px 8px;white-space:nowrap}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+.picker label{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+.proto{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--surface-2)}
+.proto-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.proto .picker{max-height:220px;overflow:auto}
+.confirm{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px}
+</style>
+
+<div id="app"></div>
+<div id="ovroot"></div>
+<div id="ovroot2"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+const $=(s,el=document)=>el.querySelector(s);
+const $$=(s,el=document)=>Array.from(el.querySelectorAll(s));
+const newId=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-5);
+function textOn(h){h=String(h||"#888").replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16)||0,r=(n>>16)&255,g=(n>>8)&255,b=n&255;return (0.299*r+0.587*g+0.114*b)>150?"#111":"#fff"}
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LS_KEY="dimastag.v1";
+
+/* ---------------- defaults ---------------- */
+const KEY_GROUP="Comportamentos-chave";
+const GROUPS=["Comportamentos-chave","Conceitos"];
+/* Single fixed "Ação" button shown above the groups: a generic action tag (athlete → qualification / pitch). */
+const ACTION_BTN={id:"acao",name:"Ação",color:"#d4d4d8",key:"",mode:"instant",lead:5,lag:5,ask:true,group:"Ação"};
+const btnOf=(a,id)=>id===ACTION_BTN.id?ACTION_BTN:a.buttons.find(x=>x.id===id);
+const B=(name,color,key,mode="instant",lead=5,lag=5,group="Conceitos")=>({id:newId(),name,color,key,mode,lead,lag,group});
+const grp=b=>b&&GROUPS.includes(b.group)?b.group:(b&&b.id===ACTION_BTN.id?"Ação":"Conceitos");
+function defaultButtons(type){
+  if(type==="jogo"){const C="Comportamentos-chave",K="Conceitos";return [
+    B("Paciência para circular","#fde68a","1",undefined,8,4,C),B("Pressão pós-perda","#fdba74","2",undefined,3,8,C),
+    B("Preenchimento de área","#fcd34d","3",undefined,6,4,C),B("Atacar marcando","#f9a8d4","4",undefined,4,6,C),
+    B("Ultrapassagem","#93c5fd","5",undefined,5,4,K),B("Diagonais","#a5b4fc","6",undefined,5,4,K),B("Flutuações","#c4b5fd","7",undefined,5,4,K),
+    B("Passe diagonal","#bfdbfe","8",undefined,5,4,K),B("Bola que baixa sobe","#99f6e4","9",undefined,5,4,K),B("Triangulações","#86efac","q",undefined,5,4,K),B("Combinações ofensivas","#6ee7b7","w",undefined,5,4,K),
+  ]}
+  const C="Comportamentos-chave",K="Conceitos";
+  return [
+    B("Paciência para circular","#fde68a","1",undefined,8,4,C),B("Pressão pós-perda","#fdba74","2",undefined,3,8,C),
+    B("Preenchimento de área","#fcd34d","3",undefined,6,4,C),B("Atacar marcando","#f9a8d4","4",undefined,4,6,C),
+    B("Ultrapassagem","#bfdbfe","q",undefined,5,4,K),B("Diagonais","#a5b4fc","w",undefined,5,4,K),
+    B("Flutuações","#c7d2fe","e",undefined,5,4,K),B("Passe diagonal","#93c5fd","r",undefined,4,4,K),
+    B("Bola que baixa sobe","#99f6e4","t",undefined,4,5,K),B("Triangulações","#a7f3d0","y",undefined,5,4,K),
+    B("Combinações ofensivas","#67e8f9","u",undefined,6,4,K),
+  ];
+}
+const SESSION_PRESETS={jogo:["1º tempo","2º tempo","Prorrogação 1º","Prorrogação 2º","Pênaltis"],treino:["1º bloco","2º bloco","3º bloco","4º bloco","5º bloco"]};
+const INFO_FIELDS={
+  jogo:[["competicao","Competição","text"],["rodada","Rodada / fase","text"],["data","Data","date"],["horario","Horário","time"],["local","Local / estádio","text"],["categoria","Categoria","text"],["mandante","Mandante","text"],["visitante","Visitante","text"],["golsMandante","Gols mandante","number"],["golsVisitante","Gols visitante","number"],["sistema","Sistema tático","text"],["analista","Analista","text"],["obs","Observações","textarea"]],
+  treino:[["data","Data","date"],["horario","Horário","time"],["local","Local","text"],["categoria","Categoria","text"],["microciclo","Microciclo / dia","text"],["objetivo","Objetivo da sessão","text"],["duracao","Duração prevista (min)","number"],["treinador","Treinador / comissão","text"],["atletas","Atletas presentes","number"],["analista","Analista","text"],["obs","Observações","textarea"]]
+};
+
+function newAnalysis(type,title,info){
+  const now=Date.now();
+  return {id:"a"+newId(),kind:"analysis",type,title:title||(type==="jogo"?"Novo jogo":"Novo treino"),createdAt:now,updatedAt:now,
+    info:Object.assign({},info||{}),buttons:(store.config.defaults[type]||defaultButtons(type)).map(b=>Object.assign({},b,{id:newId()})),
+    clock:{general:{running:false,acc:0,since:0},session:{running:false,acc:0,since:0,open:false}},
+    sessionName:SESSION_PRESETS[type][0],sessions:[],tags:[],openToggles:{},videoOffset:0};
+}
+function exampleAnalysis(){
+  const a=newAnalysis("jogo","Exemplo · Sub-17 x Atlético",{competicao:"Paulista Sub-17",rodada:"8ª rodada",data:"2026-10-24",horario:"10:00",local:"CT Municipal",categoria:"Sub-17",mandante:"DIMAS",visitante:"Atlético",golsMandante:"2",golsVisitante:"1",sistema:"1-4-3-3",analista:"",obs:"Análise de exemplo para conhecer o app. Pode apagar."});
+  a.example=true;
+  const byName=n=>a.buttons.find(b=>b.name===n);
+  a.sessions=[{id:newId(),name:"1º tempo",start:30,end:30+47*60}];
+  const ev=[["Ultrapassagem",312],["Diagonais",318],["Pressão pós-perda",334],["Triangulações",780],["Paciência para circular",1105],["Combinações ofensivas",1460],["Flutuações",1990],["Preenchimento de área",2005],["Passe diagonal",2420]];
+  a.tags=ev.map(([n,t])=>{const b=byName(n);return {id:newId(),btn:b.id,code:b.name,start:Math.max(0,t-b.lead),end:t+b.lag,t,session:"1º tempo",st:t-30,note:""}});
+  a.tags.sort((x,y)=>x.start-y.start);
+  a.clock.general.acc=(30+47*60)*1000; a.sessionName="2º tempo";
+  return a;
+}
+
+/* ---------------- storage (private per user via db; local fallback) ---------------- */
+const store={
+  db:null,uid:null,cloud:false,analyses:{},config:{kind:"config",defaults:{}},timers:{},status:"",
+  loadLocal(){try{const raw=localStorage.getItem(LS_KEY);if(raw){const o=JSON.parse(raw);this.analyses=o.analyses||{};if(o.config)this.config=o.config}}catch(e){}},
+  saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify({analyses:this.analyses,config:this.config}))}catch(e){}},
+  async connect(){
+    try{
+      if(!window.claude||!claude.use)return;
+      const [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
+      if(!db||!user)return;
+      const id=await user.id(); if(!id)return;
+      this.db=db;this.uid=id;
+      const snap=await db.collection("data/users/"+id).get();
+      const remote={};let remoteCfg=null;
+      snap.docs.forEach(d=>{let v=d.data();if(!v)return;v=JSON.parse(JSON.stringify(v));if(v.kind==="config")remoteCfg=v;else if(v.kind==="analysis")remote[d.id]=v});
+      for(const [k,v] of Object.entries(remote)){const loc=this.analyses[k];if(!loc||(v.updatedAt||0)>=(loc.updatedAt||0))this.analyses[k]=v}
+      for(const [k,v] of Object.entries(this.analyses)){if(!remote[k]||(v.updatedAt||0)>(remote[k].updatedAt||0))this.push(k)}
+      if(remoteCfg)this.config=remoteCfg; else if(Object.keys(this.config.defaults||{}).length)this.pushConfig();
+      this.cloud=true;this.saveLocal();
+    }catch(e){this.db=null;this.cloud=false}
+  },
+  ref(id){return this.db.collection("data/users/"+this.uid).doc(id)},
+  push(id){
+    if(!this.db)return;
+    clearTimeout(this.timers[id]);
+    this.timers[id]=setTimeout(async()=>{
+      const a=this.analyses[id];if(!a)return;
+      try{await this.ref(id).set(JSON.parse(JSON.stringify(a)));setSave("Salvo na sua conta")}
+      catch(e){setSave(e&&e.code==="quota_exceeded"?"Espaço da conta cheio: salvo só neste navegador":"Salvo só neste navegador")}
+    },700);
+  },
+  pushConfig(){if(!this.db)return;this.ref("config").set(JSON.parse(JSON.stringify(this.config))).catch(()=>{})},
+  save(a){a.updatedAt=Date.now();this.analyses[a.id]=a;this.saveLocal();setSave(this.db?"Salvando…":"Salvo neste navegador");this.push(a.id)},
+  remove(id){delete this.analyses[id];this.saveLocal();if(this.db)this.ref(id).delete().catch(()=>{})},
+  saveConfig(){this.saveLocal();this.pushConfig()}
+};
+function setSave(t){store.status=t;const el=$("#savestate");if(el)el.textContent=t}
+
+/* ---------------- time helpers ---------------- */
+const now=()=>Date.now();
+const clockMs=c=>c.acc+(c.running?now()-c.since:0);
+function fmt(ms,withTenths){
+  const neg=ms<0;ms=Math.abs(ms);
+  const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
+  const base=(h?h+":"+String(m).padStart(2,"0"):String(m).padStart(2,"0"))+":"+String(ss).padStart(2,"0");
+  return (neg?"-":"")+base+(withTenths?"."+Math.floor(ms%1000/100):"");
+}
+const fmtS=sec=>fmt(sec*1000);
+
+/* ---------------- app state ---------------- */
+let cur=null; // analysis open
+let newType="jogo";
+let tick=null;
+
+/* theme: viewer's choice stored per browser; "system" removes the attribute */
+const THEME_KEY=LS_KEY+".theme";
+function getTheme(){try{return localStorage.getItem(THEME_KEY)||"system"}catch(e){return "system"}}
+function applyTheme(t){const r=document.documentElement;if(t==="light"||t==="dark")r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");try{localStorage.setItem(THEME_KEY,t)}catch(e){}}
+function isDarkNow(){const t=getTheme();return t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches)}
+function themeBtn(){const dark=isDarkNow();
+  return `<button class="btn themebtn" id="themebtn" type="button" title="${dark?"Mudar para claro":"Mudar para escuro"}" aria-label="${dark?"Mudar para tema claro":"Mudar para tema escuro"}">${dark
+    ?`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`
+    :`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>`}</button>`}
+function wireTheme(){const b=$("#themebtn");if(!b)return;b.onclick=()=>{applyTheme(isDarkNow()?"light":"dark");b.outerHTML=themeBtn();wireTheme()}}
+applyTheme(getTheme());
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200)}
+
+/* ================= START SCREEN ================= */
+function renderHome(){
+  cur=null;stopTick();
+  const list=Object.values(store.analyses).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  $("#app").innerHTML=`
+  <div class="wrap">
+    <header class="home-head">
+      <div class="brand">
+        <h1>DIMAS <span class="hub">Tag</span></h1>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="savestate" id="savestate">${esc(store.cloud?"Análises salvas na sua conta":"Análises salvas neste navegador")}</span><button class="btn" type="button" id="roster">Atletas (${roster().length})</button>${themeBtn()}</div>
+    </header>
+    <div class="home-grid">
+      <section class="panel">
+        <h2>Nova análise</h2>
+        <form id="newform" class="stack">
+          <div class="seg" role="group" aria-label="Tipo">
+            <button type="button" data-type="jogo" aria-pressed="${newType==="jogo"}">Jogo</button>
+            <button type="button" data-type="treino" aria-pressed="${newType==="treino"}">Treino</button>
+          </div>
+          <label class="f"><span>${newType==="jogo"?"Nome da análise":"Nome da sessão"}</span><input type="text" id="nf-title" placeholder="${newType==="jogo"?"Ex.: Sub-17 x Atlético":"Ex.: Sessão tática · MD-3"}" required></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label class="f"><span>Data</span><input type="date" id="nf-date" value="${new Date().toISOString().slice(0,10)}"></label>
+            <label class="f"><span>Categoria</span><input type="text" id="nf-cat" placeholder="Sub-17"></label>
+          </div>
+          ${protocols().length?`<label class="f"><span>Protocolo de botões</span><select id="nf-proto"><option value="">Padrão de ${newType}</option>${protocols().map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.buttons.length} botões</option>`).join("")}</select></label>`:""}
+          <button class="btn primary" type="submit">Criar análise</button>
+          
+        </form>
+      </section>
+      <section>
+        <div class="section-h" style="margin-top:0"><h2>Análises</h2><span class="muted">${list.length} ${list.length===1?"análise":"análises"}</span></div>
+        <div class="list" id="alist">
+          ${list.length?list.map(a=>{
+            const live=a.clock&&a.clock.general.running;
+            const d=a.info&&a.info.data?new Date(a.info.data+"T12:00").toLocaleDateString("pt-BR"):new Date(a.createdAt).toLocaleDateString("pt-BR");
+            return `<div class="item" data-open="${a.id}" tabindex="0" role="button">
+              <span class="typebadge ${a.type}">${a.type}</span>
+              <div style="min-width:0"><h3>${esc(a.title)}</h3><div class="meta">${d}${a.info&&a.info.categoria?" · "+esc(a.info.categoria):""} · ${a.tags.length} tags · <span class="num" title="Tempo total da tarefa">⏱ ${fmt(taskMs(a))}</span> ${live?'<span class="pill live">ao vivo</span>':""} ${a.example?'<span class="pill">exemplo</span>':""}${a.protocol&&protocols().find(p=>p.id===a.protocol)?` <span class="pill">${esc(protocols().find(p=>p.id===a.protocol).name)}</span>`:""}</div></div>
+              <span class="confirm" data-delwrap="${a.id}"><button class="btn sm ghost danger" data-del="${a.id}" type="button">Apagar</button></span>
+            </div>`}).join(""):`<div class="empty">Nenhuma análise ainda. Crie a primeira ao lado.</div>`}
+        </div>
+      </section>
+    </div>
+  </div>`;
+  $$(".seg button").forEach(b=>b.onclick=()=>{newType=b.dataset.type;const t=$("#nf-title").value,c=$("#nf-cat").value,d=$("#nf-date").value;renderHome();$("#nf-title").value=t;$("#nf-cat").value=c;$("#nf-date").value=d});
+  $("#roster").onclick=()=>openRoster(renderHome);wireTheme();
+  $("#newform").onsubmit=e=>{e.preventDefault();
+    const a=newAnalysis(newType,$("#nf-title").value.trim(),{data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()});
+    const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id}}
+    store.save(a);openAnalysis(a.id)};
+  $$("[data-open]").forEach(el=>{
+    el.onclick=e=>{if(e.target.closest("[data-delwrap]"))return;openAnalysis(el.dataset.open)};
+    el.onkeydown=e=>{if((e.key==="Enter"||e.key===" ")&&e.target===el){e.preventDefault();openAnalysis(el.dataset.open)}};
+  });
+  $$("[data-del]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.del,w=b.parentElement;
+    w.innerHTML=`<span>Apagar?</span><button class="btn sm danger" type="button" data-yes>Sim</button><button class="btn sm" type="button" data-no>Não</button>`;
+    $("[data-yes]",w).onclick=ev=>{ev.stopPropagation();store.remove(id);renderHome()};
+    $("[data-no]",w).onclick=ev=>{ev.stopPropagation();renderHome()};
+  });
+}
+
+/* ================= ANALYSIS SCREEN ================= */
+function openAnalysis(id){cur=store.analyses[id];if(!cur)return renderHome();renderAnalysis();startTick();requestWake()}
+
+const W=a=>a.type=="treino"?{n:"bloco",N:"Bloco",f:false,single:false,auto:true}:{n:"período",N:"Período",f:false,single:false,auto:false};
+const nextBlockName=a=>(a.sessions.length+1)+"º bloco";
+function genSec(){return clockMs(cur.clock.general)/1000}
+/* Total task time: sum of closed blocks/periods plus the one still running. */
+function taskMs(a){let ms=0;for(const x of a.sessions||[]){if(x.end!=null)ms+=(x.duration!=null?x.duration:Math.max(0,x.end-x.start))*1000}if(a.clock.session&&a.clock.session.open)ms+=clockMs(a.clock.session);return ms}
+function sessSec(){return clockMs(cur.clock.session)/1000}
+function openSession(){const s=cur.sessions[cur.sessions.length-1];return s&&s.end==null?s:null}
+
+function pruneButtons(a){const keep=(a.buttons||[]).filter(b=>GROUPS.includes(b.group));if(keep.length!==(a.buttons||[]).length){a.buttons=keep;for(const id of Object.keys(a.openToggles||{}))if(!keep.find(b=>b.id===id))delete a.openToggles[id];return true}return false}
+function renderAnalysis(){
+  if(pruneButtons(cur))store.save(cur);
+  const a=cur;
+  $("#app").innerHTML=`
+  <div class="topbar"><div class="wrap">
+    <button class="btn sm" id="back" type="button">← Análises</button>
+    <span class="typebadge ${a.type}">${a.type}</span>
+    <h1 title="${esc(a.title)}">${esc(a.title)}</h1>
+    <span class="savestate" id="savestate">${esc(store.status||"")}</span>
+    <button class="btn" id="opentags" type="button" aria-controls="tagsdrawer" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.4 11.6 12.4 2.6A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7c0 .5.2 1 .6 1.4l9 9a2 2 0 0 0 2.8 0l7-7a2 2 0 0 0 0-2.8ZM7 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg> Tags</button>
+    <button class="btn primary" id="export" type="button">Finalizar e gerar XML</button>
+    ${themeBtn()}
+  </div></div>
+  <div class="wrap an-main">
+    <div class="an-grid">
+      <div>
+        <div class="clocks one">
+          <div class="clock" id="c-ses">
+            <div class="row"><span class="eyebrow">Tempo do ${W(a).n}</span><span class="dot"></span></div>
+            <div class="time" id="t-ses">00:00</div>
+            <div class="sessname" id="sessname"></div>
+            <div class="ctrls" id="ctl-ses"></div>
+            <div class="ctrls" style="grid-area:sync"><button class="btn sync" id="syncbtn" type="button" title="Marca o apito inicial no tempo atual (tecla 0)">⏱ Sincronia <span class="kk">0</span></button></div>
+          </div>
+        </div>
+        <div class="section-h"><h2>Botões de tag</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="undo" type="button">Desfazer último</button><button class="btn sm" id="editath" type="button">Atletas</button><button class="btn sm" id="editbtns" type="button">Editar botões</button></div></div>
+        <div class="pad" id="pad"></div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-bg" id="drawerbg" hidden></div>
+  <aside class="drawer" id="tagsdrawer" hidden aria-label="Tags marcadas">
+    <div class="log">
+      <div class="drawer-h"><div><h2>Tags</h2><div class="muted" style="font-size:12.5px;margin-top:2px">Análise minuto a minuto</div></div><button class="btn sm" id="closetags" type="button">Fechar</button></div>
+      <div class="log-scroll" id="logscroll"></div>
+    </div>
+  </aside>`;
+  const setDrawer=open=>{$("#tagsdrawer").hidden=!open;$("#drawerbg").hidden=!open;$("#opentags").setAttribute("aria-expanded",open)};
+  wireTheme();$("#opentags").onclick=()=>setDrawer(true);$("#closetags").onclick=()=>setDrawer(false);$("#drawerbg").onclick=()=>setDrawer(false);
+  $("#back").onclick=()=>{releaseWake();renderHome()};
+  $("#export").onclick=openExport;
+  $("#editbtns").onclick=openButtonEditor;
+  $("#syncbtn").onclick=fireSync;
+  $("#editath").onclick=()=>openRoster(()=>{renderLog()});
+  $("#undo").onclick=()=>{if(!a.tags.length)return toast("Nenhum tag para desfazer");
+    const last=a.tags.reduce((m,t)=>(t.createdAt||0)>(m.createdAt||0)?t:m,a.tags[a.tags.length-1]);
+    a.tags=a.tags.filter(t=>t!==last);store.save(a);renderLog();toast("Removido: "+last.code)};
+  renderClocks();renderPad();renderLog();
+}
+
+function renderFields(){
+  const a=cur;
+  const tf=`<label class="f full"><span>Nome da análise</span><input type="text" id="fi-title" value="${esc(a.title)}"></label>`;
+  $("#fields").innerHTML=tf+INFO_FIELDS[a.type].map(([k,l,t])=>t==="textarea"
+    ?`<label class="f full"><span>${l}</span><textarea id="fi-${k}" data-k="${k}">${esc(a.info[k]||"")}</textarea></label>`
+    :`<label class="f"><span>${l}</span><input type="${t}" id="fi-${k}" data-k="${k}" value="${esc(a.info[k]||"")}"></label>`).join("")
+    +`<label class="f full"><span>Ajuste do vídeo (segundos somados a todos os tempos no XML)</span><input type="number" step="0.1" id="fi-offset" value="${a.videoOffset||0}"></label>`;
+  $$("#fields [data-k]").forEach(el=>el.oninput=()=>{a.info[el.dataset.k]=el.value;store.save(a)});
+  $("#fi-title").oninput=e=>{a.title=e.target.value;$(".topbar h1").textContent=a.title||"Sem nome";store.save(a)};
+  $("#fi-offset").oninput=e=>{a.videoOffset=parseFloat(e.target.value)||0;store.save(a)};
+}
+
+function renderClocks(){
+  const a=cur,g=a.clock.general,s=a.clock.session,os=openSession();
+  const w=W(a),gAcc=clockMs(g)>0;
+  $("#c-ses").classList.toggle("running",s.running);
+  const presets=SESSION_PRESETS[a.type];
+  if(w.auto&&!os){
+    $("#sessname").innerHTML=`<div class="sub" style="color:var(--fg);font-weight:600">${esc(nextBlockName(a))}${a.sessions.length?` <span class="muted" style="font-weight:400">· ${a.sessions.length} encerrado${a.sessions.length>1?"s":""}</span>`:""}</div>`;
+  }else if(os){
+    $("#sessname").innerHTML=`<div class="sub" style="color:var(--fg);font-weight:600">${esc(os.name)}${s.running?"":(w.f?" · pausada":" · pausado")}</div>`;
+  }else{
+    $("#sessname").innerHTML=`<input type="text" id="sessinput" list="sesslist" value="${esc(a.sessionName||presets[0])}" aria-label="Nome ${w.f?"da":"do"} ${w.n}"><datalist id="sesslist">${presets.map(p=>`<option value="${esc(p)}">`).join("")}</datalist>`;
+    $("#sessinput").oninput=e=>{a.sessionName=e.target.value;store.save(a)};
+  }
+  $("#ctl-ses").innerHTML=!os
+    ?`<button class="btn primary" data-s="start" type="button">${w.single?(gAcc?"Retomar":"Iniciar"):"Iniciar "+w.n}</button>${gAcc?`<span class="confirm" id="gresetwrap"><button class="btn ghost sm" data-g="reset" type="button">Zerar análise</button></span>`:""}`
+    :(s.running?`<button class="btn" data-s="pause" type="button">Pausar</button>`:`<button class="btn primary" data-s="resume" type="button">Retomar</button>`)+`<button class="btn" data-s="end" type="button">${w.single?"Encerrar":"Encerrar "+w.n}</button>`;
+  $$("[data-g]").forEach(b=>b.onclick=()=>genAction(b.dataset.g));
+  $$("[data-s]").forEach(b=>b.onclick=()=>sesAction(b.dataset.s));
+  updateTimes();
+}
+function genAction(act){
+  const g=cur.clock.general;
+  if(act==="start"){g.since=now();g.running=true}
+  else if(act==="pause"){g.acc=clockMs(g);g.running=false}
+  else if(act==="reset"){const wr=$("#gresetwrap");
+    wr.innerHTML=`<span>Zerar tempos e apagar tags?</span><button class="btn sm danger" type="button" id="gyes">Sim</button><button class="btn sm" type="button" id="gno">Não</button>`;
+    $("#gyes").onclick=()=>{cur.clock.general={running:false,acc:0,since:0};cur.clock.session={running:false,acc:0,since:0,open:false};cur.tags=[];cur.sessions=[];cur.openToggles={};store.save(cur);renderClocks();renderPad();renderLog()};
+    $("#gno").onclick=renderClocks;return}
+  store.save(cur);renderClocks();
+}
+function sesAction(act){
+  const a=cur,s=a.clock.session,g=a.clock.general;
+  if(act==="start"){
+    if(!g.running){g.since=now();g.running=true}
+    const name=W(a).auto?nextBlockName(a):((a.sessionName||W(a).N).trim()||W(a).N);
+    a.sessions.push({id:newId(),name,start:genSec(),end:null});
+    a.clock.session={running:true,acc:0,since:now(),open:true};
+  }else if(act==="pause"){s.acc=clockMs(s);s.running=false}
+  else if(act==="resume"){s.since=now();s.running=true}
+  else if(act==="end"){
+    const os=openSession();if(os){os.end=genSec();os.duration=sessSec()}
+    a.clock.session={running:false,acc:0,since:0,open:false};
+    const p=SESSION_PRESETS[a.type],i=p.indexOf(os&&os.name);
+    a.sessionName=i>=0&&i<p.length-1?p[i+1]:(os?os.name:W(a).N);
+    toast(W(a).N+" encerrado: "+(os?os.name:""));
+  }
+  store.save(a);renderClocks();renderLog();
+}
+function updateTimes(){
+  if(!cur)return;
+  const ts=$("#t-ses");if(!ts)return;
+  ts.textContent=fmt(clockMs(cur.clock.session));
+  for(const [bid,st] of Object.entries(cur.openToggles||{})){const el=$(`[data-live="${bid}"]`);if(el)el.textContent="gravando "+fmtS(Math.max(0,genSec()-st.start))}
+}
+function startTick(){stopTick();tick=setInterval(updateTimes,200)}
+function stopTick(){if(tick)clearInterval(tick);tick=null}
+
+function renderPad(){
+  const a=cur;
+  const btn=b=>{const open=a.openToggles[b.id];
+    return `<button class="tagbtn ${open?"open":""}" type="button" data-tag="${b.id}" style="background:${esc(b.color)};color:${textOn(b.color)}">
+      <span class="name">${esc(b.name)}</span>
+      <span class="m" ${open?`data-live="${b.id}"`:""}>${open?"gravando…":(b.mode==="toggle"?"liga / desliga":`−${b.lead}s / +${b.lag}s`)}</span>
+    </button>`};
+  const used=GROUPS.filter(g=>a.buttons.some(b=>grp(b)===g));
+  $("#pad").innerHTML=`<div class="padgrp action-row"><div class="pad-inner">${btn(ACTION_BTN).replace('class="tagbtn ','class="tagbtn action ')}</div></div>`+(a.buttons.length
+    ?used.map(g=>`<div class="padgrp"><div class="eyebrow">${esc(g)}</div><div class="pad-inner">${a.buttons.filter(b=>grp(b)===g).map(btn).join("")}</div></div>`).join("")
+    :`<div class="empty">Nenhum botão. Use “Editar botões”.</div>`);
+  $$("[data-tag]").forEach(el=>el.onclick=()=>fireTag(el.dataset.tag));
+}
+function fireTag(bid){
+  const a=cur,b=btnOf(a,bid);if(!b)return;
+  const g=a.clock.general;
+  if(!g.running&&clockMs(g)===0){toast(W(a).single?"Inicie a sessão antes de taguear":"Inicie o período antes de taguear");return}
+  const t=genSec(),os=openSession(),sess=os?os.name:"",st=os?sessSec():null;
+  const el=$(`[data-tag="${bid}"]`);if(el){el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),140)}
+  let tag;
+  if(b.mode==="toggle"){
+    const o=a.openToggles[bid];
+    if(!o){a.openToggles[bid]={start:t,session:sess,st};store.save(a);renderPad();toast(b.name+" · início "+fmtS(t));return}
+    delete a.openToggles[bid];
+    tag={btn:b.id,code:b.name,start:o.start,end:Math.max(t,o.start+0.1),t:o.start,session:o.session,st:o.st,athletes:[]};
+    renderPad();
+  }else{
+    tag={btn:b.id,code:b.name,start:Math.max(0,t-(+b.lead||0)),end:t+(+b.lag||0),t,session:sess,st,athletes:[]};
+  }
+  /* Key behaviours are team-level: no athlete, straight to Reforço/Ajuste (also in jogo, no pitch). */
+  if(b.id===ACTION_BTN.id){quickPick(b,tag,{scope:true});return}
+  if(grp(b)===KEY_GROUP){quickPick(b,tag,{ratingOnly:true});return}
+  if(b.ask===false||!roster().length){addTag(tag);toast(b.name+" · "+fmtS(t));return}
+  quickPick(b,tag);
+}
+/* Sync mark: the referee's first whistle, used to align the XML with the video. Never asks for athlete or rating. */
+function fireSync(){
+  const a=cur,g=a.clock.general;
+  if(!g.running&&clockMs(g)===0){toast(W(a).single?"Inicie a sessão antes de marcar a sincronia":"Inicie o período antes de marcar a sincronia");return}
+  const t=genSec(),os=openSession();
+  const el=$("#syncbtn");if(el){el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),140)}
+  addTag({btn:"sync",code:"Sincronia",sync:true,start:t,end:t+1,t,session:os?os.name:"",st:os?sessSec():null,athletes:[]});
+  toast("Sincronia · apito inicial · "+fmtS(t));
+}
+/* pitch map: 105 x 68 m drawn in a 0..100 x 0..100 coordinate space (x along the length, attack left→right; y along the width, 0 at the top) */
+function pitchSVG(pos){
+  return `<svg class="pitch" id="pitch" viewBox="-2 -2 109 72" aria-label="Campograma" role="img">
+    <rect x="0" y="0" width="105" height="68"/><line x1="52.5" y1="0" x2="52.5" y2="68"/><circle class="l" cx="52.5" cy="34" r="9.15"/>
+    <rect x="0" y="13.84" width="16.5" height="40.32"/><rect x="88.5" y="13.84" width="16.5" height="40.32"/>
+    <rect x="0" y="24.84" width="5.5" height="18.32"/><rect x="99.5" y="24.84" width="5.5" height="18.32"/>
+    <path d="M16.5 26.7 A9.15 9.15 0 0 1 16.5 41.3"/><path d="M88.5 26.7 A9.15 9.15 0 0 0 88.5 41.3"/>
+    <circle class="l" cx="11" cy="34" r=".6"/><circle class="l" cx="94" cy="34" r=".6"/><circle class="l" cx="52.5" cy="34" r=".6"/>
+    <path class="arrow" d="M44 63 h12 v-2.2 l5 3.4 -5 3.4 v-2.2 h-12z"/>
+    ${pos?`<circle class="mark" cx="${(pos.x/100*105).toFixed(2)}" cy="${(pos.y/100*68).toFixed(2)}" r="1.8"/>`:""}
+  </svg>`}
+function wirePitch(root,tag,onSet){
+  const svg=$("#pitch",root);
+  const set=e=>{const r=svg.getBoundingClientRect();
+    /* viewBox has a 2-unit margin on each side */
+    const vx=(e.clientX-r.left)/r.width*109-2,vy=(e.clientY-r.top)/r.height*72-2;
+    const x=Math.max(0,Math.min(100,vx/105*100)),y=Math.max(0,Math.min(100,vy/68*100));
+    tag.pos={x:Math.round(x*10)/10,y:Math.round(y*10)/10};
+    let m=svg.querySelector(".mark");if(!m){m=document.createElementNS("http://www.w3.org/2000/svg","circle");m.setAttribute("class","mark");m.setAttribute("r","1.8");svg.appendChild(m)}
+    m.setAttribute("cx",(tag.pos.x/100*105).toFixed(2));m.setAttribute("cy",(tag.pos.y/100*68).toFixed(2));onSet&&onSet()};
+  svg.onpointerdown=e=>{e.preventDefault();set(e)};
+}
+function openTagPitch(tagId){
+  const a=cur,t=a.tags.find(x=>x.id===tagId);if(!t)return;const bak=t.pos?Object.assign({},t.pos):null;
+  $("#ovroot2").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Posição no campo" style="width:min(640px,100%)">
+    <h2 style="font-size:20px">Posição · ${esc(t.code)} · ${fmtS(t.start)}</h2>
+    <div class="pitchwrap">${pitchSVG(t.pos)}<div class="coord" id="pt-coord">${t.pos?`x ${t.pos.x} · y ${t.pos.y}`:"Toque no campo para marcar."}</div></div>
+    <div class="foot"><button class="btn sm ghost" type="button" id="pt-clear">Remover posição</button><button class="btn" type="button" id="pt-cancel">Cancelar</button><button class="btn primary" type="button" id="pt-ok">Salvar</button></div></div></div>`;
+  wirePitch($("#ovroot2"),t,()=>{$("#pt-coord").textContent=`x ${t.pos.x} · y ${t.pos.y}`});
+  const close=()=>{$("#ovroot2").innerHTML=""};
+  $("#pt-cancel").onclick=()=>{if(bak)t.pos=bak;else delete t.pos;close()};
+  $("#pt-clear").onclick=()=>{delete t.pos;store.save(a);close();renderLog()};
+  $("#pt-ok").onclick=()=>{store.save(a);close();renderLog()};
+}
+/* after a tag click: step 1 athlete, step 2 rating. The tag's time was already captured. */
+function quickPick(b,tag,opts){
+  opts=opts||{};
+  const r=groupedRoster().flatMap(g=>g.players),KEYS="123456789qwertyuiopasdfghjklzxcvbnm";
+  const box=$("#ovroot2");
+  const done=()=>{box.innerHTML="";addTag(tag);toast(tag.code+(tag.scope?" · "+tag.scope:"")+(tag.rating?" · "+tag.rating:"")+(tag.pos?` · ${tag.pos.x},${tag.pos.y}`:"")+" · "+fmtS(tag.t))};
+  /* Ação ends with an optional note; every other button saves straight away. */
+  const finish=()=>opts.scope?stepNote():done();
+  const stepNote=()=>{
+    box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Nota" style="width:min(520px,100%)">
+      ${head("nota")}
+      <textarea id="qn-text" rows="3" placeholder="Escreva uma observação (opcional)" style="width:100%;resize:vertical;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg)"></textarea>
+      <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem nota</button><button class="btn primary" type="button" id="qn-ok">Salvar nota</button></div></div></div>`;
+    const ta=$("#qn-text",box);
+    const save=()=>{const v=ta.value.trim();if(v)tag.note=v;done()};
+    $("#qp-skip").onclick=()=>{done()};
+    $("#qn-ok").onclick=save;
+    box.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){save()}else if(e.key==="Escape"){done()}else return;e.preventDefault()};
+    ta.focus();
+  };
+  const lbl=(n,txt)=>opts.scope?txt:n+" · "+txt;
+  const head=step=>`<div class="qp-h"><div style="display:flex;align-items:center;gap:8px"><span class="tagname" style="background:${esc(b.color)};color:${textOn(b.color)}">${esc(b.name)}</span><span class="num muted">${fmtS(tag.t)}</span>${tag.athletes.length?`<span class="pill">${esc(tagAthLabels(tag)[0])}</span>`:""}</div><span class="muted" style="font-size:12px">${step}</span></div>`;
+  const stepPitch=()=>{
+    box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Posição no campo" style="width:min(640px,100%)">
+      ${head(lbl("2 de 2","posição no campo"))}
+      <div class="pitchwrap">${pitchSVG(tag.pos)}<div class="coord" id="pt-coord">${tag.pos?`x ${tag.pos.x} · y ${tag.pos.y}`:"Toque no campo para marcar. Ataque da esquerda para a direita."}</div></div>
+      <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem posição</button><button class="btn primary" type="button" id="pt-ok" ${tag.pos?"":"disabled"}>Confirmar</button></div></div></div>`;
+    wirePitch(box,tag,()=>{$("#pt-ok").disabled=false;$("#pt-coord").textContent=`x ${tag.pos.x} · y ${tag.pos.y}`});
+    $("#qp-skip").onclick=()=>{delete tag.pos;finish()};
+    $("#pt-ok").onclick=finish;
+    box.onkeydown=e=>{if(e.key==="Enter"&&tag.pos){finish()}else if(e.key==="Escape"){delete tag.pos;finish()}else return;e.preventDefault()};
+    box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
+  };
+  const step2=()=>(cur.type==="jogo"?stepPitch:stepRating)();
+  const stepRating=()=>{
+    box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Avaliação" style="width:min(420px,100%)">
+      ${head(opts.ratingOnly?"qualificação":lbl("2 de 2","qualificação"))}
+      <div class="qp rate"><button type="button" class="pos" data-r="Reforço">Reforço <span class="kk">1</span></button><button type="button" class="adj" data-r="Ajuste">Ajuste <span class="kk">2</span></button></div>
+      <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem qualificação</button></div></div></div>`;
+    $$("[data-r]",box).forEach(el=>el.onclick=()=>{tag.rating=el.dataset.r;finish()});
+    $("#qp-skip").onclick=finish;
+    box.onkeydown=e=>{if(e.key==="1"){tag.rating="Reforço";finish()}else if(e.key==="2"){tag.rating="Ajuste";finish()}else if(e.key==="Escape")finish();else return;e.preventDefault()};
+    box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
+  };
+  const stepAthlete=()=>{
+  box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Atleta" style="width:min(820px,100%)">
+    ${head(lbl("1 de 2","atleta"))}
+    ${groupedRoster().map(g=>`<div class="qp-grp">${esc(g.name)}</div><div class="qp qpath">${g.players.map(p=>`<button type="button" data-a="${p.id}" title="${esc(p.name)}${p.pos?" · "+esc(p.pos):""}">${avatar(p)}<span class="nm">${esc(p.name)}</span></button>`).join("")}</div>`).join("")}
+    <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem atleta</button></div></div></div>`;
+  const pick=id=>{tag.athletes=[id];tag.athNames={[id]:athLabel(id)};step2()};
+  $$("[data-a]",box).forEach(el=>el.onclick=()=>pick(el.dataset.a));
+  $("#qp-skip").onclick=step2;
+  box.onkeydown=e=>{if(e.key==="Escape"){step2();e.preventDefault();return}const i=KEYS.indexOf(e.key.toLowerCase());if(i>=0&&r[i]){e.preventDefault();pick(r[i].id)}};
+  box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
+  };
+  /* Ação: Coletivo (team, no athlete) or Individual (then pick the athlete). */
+  const stepScope=()=>{
+    box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Tipo da ação" style="width:min(420px,100%)">
+      ${head("tipo")}
+      <div class="qp rate"><button type="button" class="col" data-s="Coletivo">Coletivo <span class="kk">1</span></button><button type="button" class="ind" data-s="Individual">Individual <span class="kk">2</span></button></div>
+      <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Cancelar</button></div></div></div>`;
+    const go=sc=>{tag.scope=sc;if(sc==="Individual"&&r.length)stepAthlete();else step2()};
+    $$("[data-s]",box).forEach(el=>el.onclick=()=>go(el.dataset.s));
+    $("#qp-skip").onclick=()=>{box.innerHTML="";toast("Ação cancelada")};
+    box.onkeydown=e=>{if(e.key==="1")go("Coletivo");else if(e.key==="2")go("Individual");else if(e.key==="Escape"){box.innerHTML="";toast("Ação cancelada")}else return;e.preventDefault()};
+    box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
+  };
+  if(opts.ratingOnly){stepRating();return}
+  if(opts.scope){stepScope();return}
+  stepAthlete();
+}
+/* ---------------- athletes ---------------- */
+function roster(){if(!store.config.roster){try{store.config.roster=[]}catch(e){store.config=Object.assign({},store.config,{roster:[]})}}return store.config.roster}
+function photoSrc(p){return p&&p.photo?(p.photo.asset?"/_blob/"+p.photo.asset:p.photo.data||""):""}
+function initials(n){return String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()}
+function avatar(p,cls){const src=photoSrc(p);return src?`<img class="av ${cls||""}" src="${esc(src)}" alt="">`:`<span class="av ${cls||""}" aria-hidden="true">${esc(initials(p.name))}</span>`}
+function canvasBlob(c,q){return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("img")),"image/jpeg",q))}
+async function makePhoto(src){
+  try{const assets=window.claude&&claude.use?await claude.use("assets"):null;
+    if(assets){const c=cropRender(src,320);const r=await assets.upload(await canvasBlob(c,.85),{type:"image/jpeg"});return {asset:r.id}}}catch(e){}
+  return {data:cropRender(src,96).toDataURL("image/jpeg",.72)};
+}
+/* src = {img, zoom, x, y, bg}: x/y are the image center offset in crop-units (0..1 of the crop side), zoom = scale over the cover size */
+function cropRender(src,size){
+  const c=document.createElement("canvas");c.width=c.height=size;const ctx=c.getContext("2d");
+  ctx.fillStyle=src.bg||"#ffffff";ctx.fillRect(0,0,size,size);
+  const img=src.img,cover=size/Math.min(img.width,img.height),sc=cover*src.zoom,w=img.width*sc,h=img.height*sc;
+  ctx.drawImage(img,size/2-w/2+src.x*size,size/2-h/2+src.y*size,w,h);return c;
+}
+function loadImg(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const img=new Image();img.onload=()=>res(img);img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("img"))};img.src=url})}
+function openCropper(file,done){
+  loadImg(file).then(img=>{
+    const BGS=[["#ffffff","Branco"],["#f0f0f0","Cinza-claro"],["#737373","Cinza"],["#000000","Preto"],["#9b65c5","Roxo"],["#512465","Roxo-escuro"]];
+    const src={img,zoom:1,x:0,y:0,bg:"#ffffff"};let custom=false;
+    $("#ovroot2").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="cr-h" style="width:min(460px,100%)">
+      <h2 id="cr-h">Ajustar foto</h2>
+      <div class="crop">
+        <canvas id="cr-c" width="320" height="320" aria-label="Pré-visualização do recorte"></canvas>
+        <div class="zoom"><span class="muted" style="font-size:12px">Zoom</span><input type="range" id="cr-z" min="1" max="4" step="0.01" value="1" aria-label="Zoom"><button class="btn sm ghost" type="button" id="cr-reset">Centralizar</button></div>
+        <div class="bgs"><span class="muted" style="font-size:12px;margin-right:4px">Fundo</span>
+          ${BGS.map(([c,n])=>`<button type="button" data-bg="${c}" title="${n}" aria-label="${n}" aria-pressed="${c===src.bg}" style="background:${c}"></button>`).join("")}
+          <input type="color" id="cr-custom" value="#dcdcdc" title="Outra cor" aria-label="Outra cor">
+        </div>
+        <p class="hint" style="margin:0;text-align:center">Arraste a foto para posicionar. O fundo aparece nas bordas e atrás de imagens sem fundo (PNG).</p>
+      </div>
+      <div class="foot"><button class="btn" type="button" id="cr-cancel">Cancelar</button><button class="btn primary" type="button" id="cr-ok">Usar foto</button></div>
+    </div></div>`;
+    const c=$("#cr-c"),ctx=c.getContext("2d");
+    const clamp=()=>{const cover=1/Math.min(img.width,img.height),w=img.width*cover*src.zoom,h=img.height*cover*src.zoom;
+      const mx=Math.max(0,(w-1)/2),my=Math.max(0,(h-1)/2);src.x=Math.min(mx,Math.max(-mx,src.x));src.y=Math.min(my,Math.max(-my,src.y))};
+    const paint=()=>{clamp();ctx.clearRect(0,0,320,320);ctx.drawImage(cropRender(src,320),0,0)};
+    paint();
+    $("#cr-z").oninput=e=>{src.zoom=+e.target.value;paint()};
+    $("#cr-reset").onclick=()=>{src.x=src.y=0;src.zoom=1;$("#cr-z").value=1;paint()};
+    const setBg=v=>{src.bg=v;$$("#ovroot2 [data-bg]").forEach(b=>b.setAttribute("aria-pressed",!custom&&b.dataset.bg===v));paint()};
+    $$("#ovroot2 [data-bg]").forEach(b=>b.onclick=()=>{custom=false;setBg(b.dataset.bg)});
+    $("#cr-custom").oninput=e=>{custom=true;setBg(e.target.value)};
+    let drag=null;
+    c.onpointerdown=e=>{drag={px:e.clientX,py:e.clientY,x:src.x,y:src.y};c.setPointerCapture(e.pointerId);c.classList.add("drag")};
+    c.onpointermove=e=>{if(!drag)return;const r=c.getBoundingClientRect();src.x=drag.x+(e.clientX-drag.px)/r.width;src.y=drag.y+(e.clientY-drag.py)/r.height;paint()};
+    c.onpointerup=c.onpointercancel=()=>{drag=null;c.classList.remove("drag")};
+    c.onwheel=e=>{e.preventDefault();src.zoom=Math.min(4,Math.max(1,src.zoom*(e.deltaY<0?1.08:1/1.08)));$("#cr-z").value=src.zoom;paint()};
+    $("#cr-cancel").onclick=()=>{$("#ovroot2").innerHTML="";done(null)};
+    $("#cr-ok").onclick=()=>{$("#ovroot2").innerHTML="";done(src)};
+  }).catch(()=>{toast("Não consegui ler essa imagem");done(null)});
+}
+function parseSheetRows(rows){
+  rows=rows.map(r=>(r||[]).map(c=>c==null?"":String(c).trim())).filter(r=>r.some(Boolean));
+  if(!rows.length)return [];
+  const h=rows[0].map(x=>x.toLowerCase());
+  const find=re=>h.findIndex(x=>re.test(x));
+  let iName=find(/nome|atleta|jogador|name/),iPos=find(/fun[çc][aã]o|posi|role/),iCat=find(/categ|cat\b|sub|equipe|time/);
+  let body=rows;
+  if(iName>=0)body=rows.slice(1);
+  else{iName=0;iPos=1;iCat=2}
+  return body.map(r=>({name:r[iName]||"",pos:iPos>=0?(r[iPos]||""):"",cat:iCat>=0?(r[iCat]||""):""})).filter(x=>x.name);
+}
+function athLabel(id){const p=roster().find(x=>x.id===id);return p?p.name:null}
+function sortedRoster(){return roster().slice().sort((x,y)=>String(x.name).localeCompare(y.name))}
+/* Athletes grouped by role, in tactical order. Role text is free (from the spreadsheet), so match by normalized prefix. */
+const ROLE_GROUPS=[["Goleiros",["goleir","gol","gk"]],["Zagueiros",["zag","zac","central","defensor"]],["Laterais",["lat","ala"]],["Volantes",["vol","primeiro vol","1º vol"]],["Meias",["mei","mc","armador","meio"]],["Extremos",["ext","pont","wing"]],["Atacantes",["atac","ata","centro","cent","9"]]];
+function normRole(r){return String(r||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim()}
+function roleGroup(p){const n=normRole(p.pos);if(!n)return "Sem função";for(const [g,ks] of ROLE_GROUPS){if(ks.some(k=>n.startsWith(k)))return g}return "Outros"}
+function groupedRoster(){const r=sortedRoster(),order=ROLE_GROUPS.map(x=>x[0]).concat(["Outros","Sem função"]),m=new Map();for(const p of r){const g=roleGroup(p);if(!m.has(g))m.set(g,[]);m.get(g).push(p)}return order.filter(g=>m.has(g)).map(g=>({name:g,players:m.get(g)}));}
+function openRoster(after){
+  let rows=roster().map(p=>Object.assign({},p));
+  const draw=()=>{
+    $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ro-h">
+      <h2 id="ro-h">Lista de atletas</h2>
+      <p class="muted" style="margin:0">A mesma lista vale para todas as análises. Os tags guardam o nome do atleta, então editar a lista não muda tags antigos.</p>
+      <div class="btable"><table style="min-width:560px"><thead><tr><th>Foto</th><th>Nome</th><th>Função</th><th>Categoria</th><th></th></tr></thead><tbody>
+      ${rows.map((p,i)=>`<tr><td><div class="photo-cell"><label for="ro-f-${p.id}" title="Escolher foto">${avatar(p,"lg")}</label><input type="file" accept="image/*" id="ro-f-${p.id}" data-photo="${i}" hidden>${p.photo?`<button class="btn sm ghost" type="button" data-nophoto="${i}" aria-label="Tirar foto">✕</button>`:`<label for="ro-f-${p.id}" class="btn sm ghost">Foto</label>`}</div></td>
+        <td><input type="text" id="ro-m-${p.id}" data-i="${i}" data-f="name" value="${esc(p.name)}"></td>
+        <td><input type="text" id="ro-p-${p.id}" data-i="${i}" data-f="pos" value="${esc(p.pos||"")}" placeholder="Ex.: Volante"></td>
+        <td><input type="text" id="ro-c-${p.id}" data-i="${i}" data-f="cat" value="${esc(p.cat||"")}" placeholder="Ex.: Sub-17"></td>
+        <td><button class="btn sm ghost danger" type="button" data-x="${i}" aria-label="Remover">✕</button></td></tr>`).join("")||`<tr><td colspan="5" class="muted">Nenhum atleta ainda.</td></tr>`}
+      </tbody></table></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" type="button" id="ro-add">+ Adicionar atleta</button>
+        <label class="btn" for="ro-sheet">Importar planilha</label><input type="file" id="ro-sheet" accept=".xlsx,.xls,.csv,.ods" hidden>
+        <span class="muted" style="font-size:13px">Excel ou CSV com colunas Nome, Função e Categoria (cabeçalho opcional).</span></div>
+      <details><summary style="cursor:pointer;font-weight:600">Colar lista</summary>
+        <div class="stack" style="margin-top:8px"><textarea id="ro-paste" rows="5" placeholder="Um atleta por linha: nome, função, categoria&#10;João Silva, Goleiro, Sub-17&#10;Pedro Lima, Meia, Sub-20"></textarea>
+        <div><button class="btn" type="button" id="ro-import">Adicionar da lista</button></div></div></details>
+      <div class="foot"><button class="btn" type="button" id="ro-cancel">Cancelar</button><button class="btn primary" type="button" id="ro-save">Salvar atletas</button></div>
+    </div></div>`;
+    $$("#ovroot [data-f]").forEach(el=>el.oninput=()=>{rows[+el.dataset.i][el.dataset.f]=el.value});
+    $$("#ovroot [data-x]").forEach(el=>el.onclick=()=>{rows.splice(+el.dataset.x,1);draw()});
+    $("#ro-add").onclick=()=>{rows.push({id:"p"+newId(),name:"",pos:"",cat:""});draw();const ins=$$("#ovroot [data-f=name]");ins[ins.length-1].focus()};
+    $("#ro-import").onclick=()=>{
+      const lines=$("#ro-paste").value.split(/\n/).map(l=>l.trim()).filter(Boolean);let n=0;
+      lines.forEach(l=>{const parts=l.split(/[;,\t]/).map(x=>x.trim());
+        if(parts[0]){rows.push({id:"p"+newId(),name:parts[0],pos:parts[1]||"",cat:parts[2]||""});n++}});
+      draw();toast(n+" atletas adicionados")};
+    $$("#ovroot [data-photo]").forEach(el=>el.onchange=()=>{const f=el.files[0];if(!f)return;const i=+el.dataset.photo;el.value="";
+      openCropper(f,async src=>{if(!src)return;toast("Salvando foto…");try{rows[i].photo=await makePhoto(src);draw()}catch(e){toast("Não consegui salvar a foto")}})});
+    $$("#ovroot [data-nophoto]").forEach(el=>el.onclick=()=>{delete rows[+el.dataset.nophoto].photo;draw()});
+    $("#ro-sheet").onchange=async e=>{const f=e.target.files[0];if(!f)return;
+      try{if(!window.XLSX)throw 0;const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const ws=wb.Sheets[wb.SheetNames[0]];
+        const list=parseSheetRows(XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:""}));
+        let added=0,upd=0;
+        list.forEach(x=>{const ex=rows.find(r=>r.name.toLowerCase()===x.name.toLowerCase());
+          if(ex){if(x.pos)ex.pos=x.pos;if(x.cat)ex.cat=x.cat;upd++}else{rows.push({id:"p"+newId(),...x});added++}});
+        draw();toast(`${added} atletas importados${upd?`, ${upd} atualizados`:""}. Clique em Salvar.`)}
+      catch(err){toast("Não consegui ler a planilha. Use .xlsx ou .csv")}};
+    $("#ro-cancel").onclick=closeOv;
+    $("#ro-save").onclick=()=>{store.config.roster=rows.filter(p=>String(p.name).trim()).map(p=>({id:p.id,name:String(p.name).trim(),pos:String(p.pos||"").trim(),cat:String(p.cat||"").trim(),...(p.photo?{photo:p.photo}:{})}));
+      store.saveConfig();closeOv();toast("Atletas salvos");after&&after()};
+  };
+  draw();
+}
+function openTagAthletes(tagId){
+  const a=cur,t=a.tags.find(x=>x.id===tagId);if(!t)return;
+  const sel=new Set(t.athletes||[]);
+  const r=sortedRoster();
+  $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ta-h" style="width:min(640px,100%)">
+    <h2 id="ta-h">Atletas em “${esc(t.code)}” · ${fmtS(t.start)}</h2>
+    ${r.length?`<div class="picker">${r.map(p=>`<label><input type="checkbox" id="ta-${p.id}" value="${p.id}" ${sel.has(p.id)?"checked":""}> ${avatar(p)} <span>${esc(p.name)}${p.pos?` <span class="muted" style="font-size:12px">· ${esc(p.pos)}</span>`:""}</span></label>`).join("")}</div>`:`<p class="muted">Nenhum atleta cadastrado. Use o botão “Atletas”.</p>`}
+    <div class="foot"><button class="btn" type="button" id="ta-cancel">Cancelar</button><button class="btn primary" type="button" id="ta-save">Salvar</button></div>
+  </div></div>`;
+  $("#ta-cancel").onclick=closeOv;
+  $("#ta-save").onclick=()=>{const ids=$$("#ovroot .picker input:checked").map(i=>i.value);
+    const keepGone=(t.athletes||[]).filter(id=>!roster().some(p=>p.id===id));
+    t.athletes=[...keepGone,...ids];t.athNames=Object.assign({},t.athNames||{});ids.forEach(id=>t.athNames[id]=athLabel(id));
+    store.save(a);closeOv();renderLog()};
+}
+function tagAthLabels(t){return (t.athletes||[]).map(id=>athLabel(id)||(t.athNames&&t.athNames[id])).filter(Boolean)}
+function addTag(tag){
+  tag.id=newId();tag.note=tag.note||"";tag.createdAt=now();
+  const fb=btnOf(cur,tag.btn);if(fb&&!tag.sync){const g=grp(fb);if(g===KEY_GROUP&&!tag.kb)tag.kb=fb.name;if(g==="Conceitos"&&!tag.cp)tag.cp=fb.name}
+  tag.athletes=tag.athletes||[];tag.athNames=tag.athNames||{};tag.athletes.forEach(id=>tag.athNames[id]=tag.athNames[id]||athLabel(id));
+  cur.tags.push(tag);cur.tags.sort((x,y)=>x.start-y.start);
+  store.save(cur);renderLog();
+}
+/* Every tag can be labelled with one key behaviour and one concept, whatever button fired it. The lists come from the analysis buttons; a stored value that no longer exists stays selectable. */
+function labelSel(a,t,field,group){
+  const names=a.buttons.filter(b=>grp(b)===group).map(b=>b.name);const v=t[field]||"";if(v&&!names.includes(v))names.push(v);
+  return `<select data-lbl="${field}" data-id="${t.id}" aria-label="${esc(group)}" style="padding:4px 6px;font-size:12px;width:auto;max-width:170px"><option value="">—</option>${names.map(n=>`<option value="${esc(n)}" ${v===n?"selected":""}>${esc(n)}</option>`).join("")}</select>`;
+}
+function renderLog(){
+  const a=cur;
+  const color=id=>(btnOf(a,id)||{}).color||"#888";
+  const rows=a.tags.slice().reverse();
+  $("#logscroll").innerHTML=rows.length?`<table><thead><tr><th>Tag</th><th>Início</th><th>Fim</th><th>Atleta</th><th>${a.type==="jogo"?"Posição / Qualificação":"Qualificação"}</th>${W(a).single?"":`<th>${W(a).N}</th>`}<th>Comportamento-chave</th><th>Conceito</th><th>Nota</th><th></th></tr></thead><tbody>${rows.map(t=>`
+    <tr><td><span class="sw ${t.sync?"sync":""}" style="background:${esc(color(t.btn))}"></span>${esc(t.code)}</td>
+    <td class="num">${fmtS(t.start)}</td><td class="num">${fmtS(t.end)}</td>
+    ${t.sync?`<td class="muted" colspan="2">apito inicial</td>`:`<td><div class="athcell">${t.scope&&!(t.athletes||[]).length?`<span class="pill">${esc(t.scope)}</span>`:""}${tagAthLabels(t).map(l=>`<span class="tagath">${esc(l)}</span>`).join("")}<button class="btn sm ghost" type="button" data-tath="${t.id}" aria-label="Escolher atletas">${(t.athletes||[]).length?"✎":"+ atleta"}</button></div></td>
+    ${a.type==="jogo"&&grp(btnOf(a,t.btn))!==KEY_GROUP?`<td><button class="btn sm ghost" type="button" data-tpos="${t.id}" aria-label="Posição no campo">${t.pos?`<span class="num">${t.pos.x} · ${t.pos.y}</span>`:"+ posição"}</button></td>`:`<td><select data-rate="${t.id}" aria-label="Avaliação" style="padding:4px 6px;font-size:12px;width:auto"><option value="">—</option><option value="Reforço" ${t.rating==="Reforço"||t.rating==="Ação positiva"?"selected":""}>Reforço</option><option value="Ajuste" ${t.rating==="Ajuste"?"selected":""}>Ajuste</option></select></td>`}`}
+    ${W(a).single?"":`<td>${esc(t.session||"—")}${t.st!=null&&t.session?` <span class="muted num">${fmtS(t.st)}</span>`:""}</td>`}
+    ${t.sync?`<td colspan="2"></td>`:`<td>${labelSel(a,t,"kb",KEY_GROUP)}</td><td>${labelSel(a,t,"cp","Conceitos")}</td>`}
+    <td><input type="text" data-note="${t.id}" value="${esc(t.note||"")}" aria-label="Nota" placeholder="nota"></td>
+    <td><button class="btn sm ghost danger" type="button" data-rm="${t.id}" aria-label="Apagar tag">✕</button></td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty" style="margin:12px">Nenhum tag ainda. Inicie ${W(a).single?"a sessão":"o período"} e use os botões.</div>`;
+  $$("[data-note]").forEach(el=>el.oninput=()=>{const t=a.tags.find(x=>x.id===el.dataset.note);if(t){t.note=el.value;store.save(a)}});
+  $$("[data-tpos]").forEach(el=>el.onclick=()=>openTagPitch(el.dataset.tpos));
+  $$("[data-lbl]").forEach(el=>el.onchange=()=>{const t=a.tags.find(x=>x.id===el.dataset.id);if(t){t[el.dataset.lbl]=el.value;store.save(a)}});
+  $$("[data-rate]").forEach(el=>el.onchange=()=>{const t=a.tags.find(x=>x.id===el.dataset.rate);if(t){t.rating=el.value;store.save(a);renderLog()}});
+  $$("[data-tath]").forEach(el=>el.onclick=()=>openTagAthletes(el.dataset.tath));
+  $$("[data-rm]").forEach(el=>el.onclick=()=>{a.tags=a.tags.filter(x=>x.id!==el.dataset.rm);store.save(a);renderLog()});
+}
+
+/* ---------------- hotkeys ---------------- */
+document.addEventListener("keydown",e=>{
+  if(e.defaultPrevented||!cur||$("#ovroot").children.length||$("#ovroot2").children.length)return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  const tg=e.target;if(tg&&(tg.tagName==="INPUT"||tg.tagName==="TEXTAREA"||tg.tagName==="SELECT"))return;
+  const k=e.key.toLowerCase();
+  const b=cur.buttons.find(x=>x.key&&x.key.toLowerCase()===k);
+  if(b){e.preventDefault();fireTag(b.id)}
+  else if(k==="0"){e.preventDefault();fireSync()}
+});
+
+/* ---------------- button editor ---------------- */
+function openButtonEditor(){
+  const a=cur;let rows=a.buttons.map(b=>Object.assign({},b));
+  const draw=()=>{
+    $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="be-h">
+      <h2 id="be-h">Botões de tag</h2>
+      <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. Tecla é opcional (uma letra ou número). “Atleta?” define se o botão pergunta atleta e avaliação depois do clique.</p>
+      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Grupo</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Tecla</th><th>Atleta?</th><th></th></tr></thead><tbody>
+      ${rows.map((b,i)=>`<tr>
+        <td><input type="color" id="be-c-${b.id}" data-i="${i}" data-f="color" value="${esc(b.color)}"></td>
+        <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
+        <td><select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select></td>
+        <td><select id="be-m-${b.id}" data-i="${i}" data-f="mode"><option value="instant" ${b.mode==="instant"?"selected":""}>Instantâneo</option><option value="toggle" ${b.mode==="toggle"?"selected":""}>Liga/desliga</option></select></td>
+        <td><input class="n" type="number" min="0" id="be-l-${b.id}" data-i="${i}" data-f="lead" value="${b.lead}" ${b.mode==="toggle"?"disabled":""}></td>
+        <td><input class="n" type="number" min="0" id="be-g-${b.id}" data-i="${i}" data-f="lag" value="${b.lag}" ${b.mode==="toggle"?"disabled":""}></td>
+        <td><input class="key" type="text" maxlength="1" id="be-k-${b.id}" data-i="${i}" data-f="key" value="${esc(b.key||"")}"></td>
+        <td style="text-align:center"><input type="checkbox" id="be-a-${b.id}" data-i="${i}" data-f="ask" ${b.ask===false?"":"checked"} aria-label="Perguntar atleta e avaliação"></td>
+        <td style="white-space:nowrap"><button class="btn sm ghost" type="button" data-up="${i}" aria-label="Subir">↑</button><button class="btn sm ghost danger" type="button" data-x="${i}" aria-label="Remover">✕</button></td>
+      </tr>`).join("")}
+      </tbody></table></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="be-add">+ Adicionar botão</button><button class="btn" type="button" id="be-restore">Carregar botões padrão de ${a.type}</button></div>
+      <div class="proto">
+        <div class="eyebrow">Protocolos</div>
+        <div class="proto-row">
+          <select id="pr-sel" aria-label="Protocolo salvo" style="width:auto;flex:1 1 200px"><option value="">Escolher protocolo salvo…</option>${protocols().map(p=>`<option value="${p.id}" ${a.protocol===p.id?"selected":""}>${esc(p.name)} · ${p.buttons.length} botões</option>`).join("")}</select>
+          <button class="btn sm" type="button" id="pr-load" ${protocols().length?"":"disabled"}>Carregar aqui</button>
+          <button class="btn sm" type="button" id="pr-apply" ${protocols().length?"":"disabled"}>Aplicar a outras análises…</button>
+          <button class="btn sm ghost danger" type="button" id="pr-del" ${protocols().length?"":"disabled"}>Excluir</button>
+        </div>
+        <div class="proto-row">
+          <input type="text" id="pr-name" placeholder="Nome do novo protocolo (ex.: Posse · Sub-17)" style="flex:1 1 220px" value="${esc((protocols().find(p=>p.id===a.protocol)||{}).name||"")}">
+          <button class="btn sm" type="button" id="pr-save">Salvar estes botões como protocolo</button>
+        </div>
+        <div id="pr-apply-box" hidden></div>
+      </div>
+      <div class="foot">
+        <button class="btn" type="button" id="be-def">Usar como padrão para novos ${a.type}s</button>
+        <button class="btn" type="button" id="be-cancel">Cancelar</button>
+        <button class="btn primary" type="button" id="be-save">Salvar botões</button>
+      </div></div></div>`;
+    $$("#ovroot [data-f]").forEach(el=>el.oninput=el.onchange=()=>{const r=rows[+el.dataset.i],f=el.dataset.f;
+      r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode")draw()});
+    $$("#ovroot [data-x]").forEach(el=>el.onclick=()=>{rows.splice(+el.dataset.x,1);draw()});
+    $$("#ovroot [data-up]").forEach(el=>el.onclick=()=>{const i=+el.dataset.up;if(i>0){[rows[i-1],rows[i]]=[rows[i],rows[i-1]];draw()}});
+    $("#be-add").onclick=()=>{rows.push(B("Novo tag","#a5b4fc","",undefined,5,5,"Conceitos"));draw();const ins=$$("#ovroot [data-f=name]");ins[ins.length-1].focus()};
+    $("#be-restore").onclick=()=>{rows=(store.config.defaults[a.type]||defaultButtons(a.type)).map(b=>Object.assign({},b,{id:newId()}));draw();toast("Botões padrão carregados. Clique em Salvar.")};
+    const selProto=()=>protocols().find(p=>p.id===$("#pr-sel").value);
+    $("#pr-save").onclick=()=>{const name=$("#pr-name").value.trim();if(!name)return toast("Dê um nome ao protocolo");const btns=cleanBtns(rows);if(!btns.length)return toast("Nenhum botão para salvar");
+      const ex=protocols().find(p=>p.name.toLowerCase()===name.toLowerCase());
+      if(ex){ex.buttons=btns;ex.updatedAt=Date.now();a.protocol=ex.id;toast("Protocolo atualizado: "+name)}else{const pr={id:"pr"+newId(),name,type:a.type,buttons:btns,createdAt:Date.now()};protocols().push(pr);a.protocol=pr.id;toast("Protocolo salvo: "+name)}
+      store.saveConfig();store.save(a);draw()};
+    $("#pr-load").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");rows=pr.buttons.filter(b=>GROUPS.includes(b.group)).map(b=>Object.assign({},b,{id:newId()}));a.protocol=pr.id;draw();toast("Protocolo carregado. Clique em Salvar botões.")};
+    $("#pr-del").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");const box=$("#pr-apply-box");box.hidden=false;
+      box.innerHTML=`<div class="confirm">Excluir o protocolo “${esc(pr.name)}”? As análises que o usam mantêm seus botões. <button class="btn sm danger" type="button" id="pr-del-yes">Excluir</button><button class="btn sm" type="button" id="pr-del-no">Cancelar</button></div>`;
+      $("#pr-del-yes").onclick=()=>{store.config.protocols=protocols().filter(p=>p.id!==pr.id);Object.values(store.analyses).forEach(x=>{if(x.protocol===pr.id)x.protocol=null});store.saveConfig();store.saveLocal();draw();toast("Protocolo excluído")};
+      $("#pr-del-no").onclick=draw};
+    $("#pr-apply").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");const box=$("#pr-apply-box");box.hidden=false;
+      const list=Object.values(store.analyses).filter(x=>x.id!==a.id).sort((x,y)=>(y.updatedAt||0)-(x.updatedAt||0));
+      box.innerHTML=`<div class="stack" style="gap:8px"><div class="muted" style="font-size:13px">Aplicar “${esc(pr.name)}” em:</div>
+        ${list.length?`<div class="picker">${list.map(x=>`<label><input type="checkbox" value="${x.id}" ${x.type===pr.type?"checked":""}> <span class="typebadge ${x.type}" style="font-size:10px">${x.type}</span> <span>${esc(x.title)}${x.protocol===pr.id?' <span class="muted">(já usa)</span>':""}</span></label>`).join("")}</div>`:`<div class="muted">Nenhuma outra análise cadastrada.</div>`}
+        <div class="confirm"><button class="btn sm primary" type="button" id="pr-apply-yes" ${list.length?"":"disabled"}>Aplicar</button><button class="btn sm" type="button" id="pr-apply-no">Cancelar</button></div></div>`;
+      $("#pr-apply-yes").onclick=()=>{const ids=$$("#pr-apply-box input:checked").map(i=>i.value);let n=0;ids.forEach(id=>{const x=store.analyses[id];if(x){applyButtons(x,pr.buttons);x.protocol=pr.id;store.save(x);n++}});draw();toast(n+" análise(s) atualizada(s)")};
+      $("#pr-apply-no").onclick=draw};
+    $("#be-cancel").onclick=closeOv;
+    $("#be-save").onclick=()=>{
+      const keys={};for(const r of rows){if(r.key){const k=r.key.toLowerCase();if(keys[k])return toast(`Tecla "${k.toUpperCase()}" repetida`);keys[k]=1}}
+      a.buttons=rows.filter(r=>r.name.trim());for(const id of Object.keys(a.openToggles))if(!a.buttons.find(b=>b.id===id))delete a.openToggles[id];
+      const pr=protocols().find(p=>p.id===a.protocol);if(pr&&JSON.stringify(cleanBtns(a.buttons))!==JSON.stringify(cleanBtns(pr.buttons)))a.protocol=null;
+      store.save(a);closeOv();renderPad();renderLog();toast("Botões salvos")};
+    $("#be-def").onclick=()=>{store.config.defaults[a.type]=rows.filter(r=>r.name.trim()).map(r=>Object.assign({},r));store.saveConfig();toast("Padrão salvo para novos "+a.type+"s")};
+  };
+  draw();
+}
+/* ---------------- protocols: named button sets, shared by all analyses ---------------- */
+function protocols(){if(!store.config.protocols){try{store.config.protocols=[]}catch(e){store.config=Object.assign({},store.config,{protocols:[]})}}return store.config.protocols}
+const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false}));
+/* apply a button set to an analysis, keeping ids of same-named buttons so old tags keep their colors */
+function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS.includes(b.group));a.buttons=btns.map(b=>{const ex=old.find(o=>o.name===b.name);return Object.assign({},b,{id:ex?ex.id:newId()})});
+  for(const id of Object.keys(a.openToggles||{}))if(!a.buttons.find(b=>b.id===id))delete a.openToggles[id];a.protocol=a.protocol||null}
+function closeOv(){$("#ovroot").innerHTML=""}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if($("#ovroot2").children.length){if($("#cr-c"))$("#ovroot2").innerHTML=""}else if($("#ovroot").children.length)closeOv();else{const d=$("#tagsdrawer");if(d&&!d.hidden){d.hidden=true;$("#drawerbg").hidden=true;$("#opentags").setAttribute("aria-expanded","false")}}}});
+
+/* ---------------- XML export (Sportscode / Hudl instance format) ---------------- */
+function hexTo16(h){h=(h||"#888888").replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255].map(v=>v*257)}
+const xe=s=>String(s??"").replace(/[<>&'"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[c]));
+const r2=n=>(Math.round(n*100)/100).toFixed(2);
+function buildXML(a,opts){
+  const off=+a.videoOffset||0,gNow=clockMs(a.clock.general)/1000;
+  const tags=a.tags.slice();
+  for(const [bid,o] of Object.entries(a.openToggles||{})){const b=a.buttons.find(x=>x.id===bid);if(b)tags.push({btn:bid,code:b.name,start:o.start,end:Math.max(gNow,o.start+0.1),session:o.session,st:o.st,athletes:o.athletes||[],note:"(aberto ao exportar)"})}
+  const inst=[];
+  tags.sort((x,y)=>x.start-y.start).forEach(t=>inst.push({start:t.start,end:t.end,code:t.code,labels:[...(W(a).single?[]:[[W(a).N,t.session]]),["Grupo",t.sync?"":grp(btnOf(a,t.btn))],...tagAthLabels(t).map(l=>["Atleta",l]),["Tipo",t.scope],["Comportamento-chave",t.kb],["Conceito",t.cp],["Avaliação",t.rating],...(t.pos?[["X",String(t.pos.x)],["Y",String(t.pos.y)]]:[]),["Nota",t.note]].filter(l=>l[1])}));
+  if(opts.sessions&&!W(a).single)a.sessions.forEach(s=>inst.push({start:s.start,end:s.end==null?gNow:s.end,code:W(a).N,labels:[[W(a).N,s.name]]}));
+  inst.sort((x,y)=>x.start-y.start);
+  const info=INFO_FIELDS[a.type].map(([k,l])=>[l,a.info[k]]).filter(x=>x[1]!==undefined&&x[1]!=="");
+  const lines=['<?xml version="1.0" encoding="utf-8"?>'];
+  lines.push("<!-- Gerado por DIMAS Tag em "+new Date().toLocaleString("pt-BR")+" -->");
+  lines.push("<!-- "+xe(a.type==="jogo"?"Jogo":"Treino")+": "+xe(a.title).replace(/--/g,"- -")+" -->");
+  lines.push("<file>");
+  lines.push("  <SESSION_INFO>");
+  lines.push("    <start_time>"+xe(new Date(a.createdAt).toISOString())+"</start_time>");
+  lines.push("  </SESSION_INFO>");
+  if(opts.meta){
+    lines.push("  <ANALYSIS_INFO>");
+    lines.push("    <type>"+xe(a.type)+"</type>");
+    lines.push("    <title>"+xe(a.title)+"</title>");
+    info.forEach(([l,v])=>lines.push('    <field name="'+xe(l)+'">'+xe(v)+"</field>"));
+    const used=[...new Set(a.tags.flatMap(t=>tagAthLabels(t)))];
+    if(used.length){lines.push("    <athletes>");used.forEach(l=>{const p=roster().find(x=>x.name===l);lines.push("      <athlete"+(p&&p.pos?' role="'+xe(p.pos)+'"':"")+(p&&p.cat?' category="'+xe(p.cat)+'"':"")+">"+xe(l)+"</athlete>")});lines.push("    </athletes>")}
+    lines.push("    <total_time>"+r2(gNow)+"</total_time>");
+    lines.push("    <video_offset>"+r2(off)+"</video_offset>");
+    lines.push("  </ANALYSIS_INFO>");
+  }
+  lines.push("  <ALL_INSTANCES>");
+  inst.forEach((it,i)=>{
+    lines.push("    <instance>");
+    lines.push("      <ID>"+(i+1)+"</ID>");
+    lines.push("      <start>"+r2(Math.max(0,it.start+off))+"</start>");
+    lines.push("      <end>"+r2(Math.max(0,it.end+off))+"</end>");
+    lines.push("      <code>"+xe(it.code)+"</code>");
+    it.labels.forEach(([g,t])=>{lines.push("      <label>");lines.push("        <group>"+xe(g)+"</group>");lines.push("        <text>"+xe(t)+"</text>");lines.push("      </label>")});
+    lines.push("    </instance>");
+  });
+  lines.push("  </ALL_INSTANCES>");
+  lines.push("  <ROWS>");
+  const codes=[...new Set(inst.map(i=>i.code))];
+  codes.forEach(c=>{const b=a.buttons.find(x=>x.name===c)||(c===ACTION_BTN.name?ACTION_BTN:null);const [R,G,Bc]=hexTo16(b?b.color:(c==="Sincronia"?"#000000":"#d4d4d8"));
+    lines.push("    <row>");lines.push("      <code>"+xe(c)+"</code>");lines.push("      <R>"+R+"</R>");lines.push("      <G>"+G+"</G>");lines.push("      <B>"+Bc+"</B>");lines.push("    </row>")});
+  lines.push("  </ROWS>");
+  lines.push("</file>");
+  return lines.join("\n");
+}
+function safeName(s){return (s||"analise").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"_").slice(0,60)||"analise"}
+
+function openExport(){
+  const a=cur;let opts={meta:true,sessions:true};
+  const draw=()=>{
+    const xml=buildXML(a,opts);
+    const nOpen=Object.keys(a.openToggles||{}).length;
+    $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ex-h">
+      <h2 id="ex-h">Gerar XML</h2>
+      <p class="muted" style="margin:0">Formato de instâncias do Sportscode / Hudl (start, end, code e labels), com tempos em segundos contados a partir do ${W(a).single?"início da sessão":"início do primeiro período"}. ${a.tags.length} tags${nOpen?`, mais ${nOpen} botão liga/desliga ainda aberto (entra fechado no tempo atual)`:""}.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:16px">
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ex-meta" ${opts.meta?"checked":""}> Incluir dados do ${a.type}</label>
+        ${W(a).single?"":`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ex-ses" ${opts.sessions?"checked":""}> Incluir ${W(a).n}s como instâncias</label>`}
+      </div>
+      <pre class="xml" id="ex-pre">${esc(xml)}</pre>
+      <div class="foot">
+        ${a.clock.general.running?`<button class="btn" type="button" id="ex-stop">Parar tempo</button>`:""}
+        <button class="btn" type="button" id="ex-close">Fechar</button>
+        <button class="btn" type="button" id="ex-copy">Copiar XML</button>
+        <button class="btn primary" type="button" id="ex-dl">Baixar XML (.zip)</button>
+      </div>
+      <p class="hint" style="margin:0" id="ex-note">O navegador do Claude só permite baixar alguns formatos, então o arquivo .xml vai dentro de um .zip. Se o download não estiver disponível, use “Copiar XML”.</p>
+    </div></div>`;
+    $("#ex-meta").onchange=e=>{opts.meta=e.target.checked;draw()};
+    const exs=$("#ex-ses");if(exs)exs.onchange=e=>{opts.sessions=e.target.checked;draw()};
+    $("#ex-close").onclick=closeOv;
+    const st=$("#ex-stop");if(st)st.onclick=()=>{const os=openSession();if(os){os.end=genSec();os.duration=sessSec()}
+      a.clock.session={running:false,acc:0,since:0,open:false};a.clock.general.acc=clockMs(a.clock.general);a.clock.general.running=false;store.save(a);renderClocks();draw();toast("Relógios parados")};
+    $("#ex-copy").onclick=()=>{const txt=buildXML(a,opts);
+      const p=navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject();
+      p.then(()=>toast("XML copiado")).catch(()=>{const r=document.createRange();r.selectNodeContents($("#ex-pre"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Texto selecionado: use Ctrl+C")})};
+    $("#ex-dl").onclick=async()=>{
+      const txt=buildXML(a,opts),base=safeName(a.title)+"_"+(a.info.data||new Date().toISOString().slice(0,10));
+      try{
+        const dl=window.claude&&claude.use?await claude.use("downloads"):null;
+        if(!dl){ /* standalone / PWA: plain browser download of the .xml */
+          const u=URL.createObjectURL(new Blob([txt],{type:"application/xml"}));const el=document.createElement("a");el.href=u;el.download=base+".xml";document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);toast("Arquivo salvo");return;
+        }
+        if(!window.JSZip)throw {code:"unavailable"};
+        const zip=new JSZip();zip.file(base+".xml",txt);
+        const blob=await zip.generateAsync({type:"blob"});
+        await dl.save({filename:base+".zip",data:blob});toast("Arquivo salvo");
+      }catch(e){
+        if(e&&e.code==="declined")return;
+        $("#ex-note").textContent="Download indisponível nesta visualização. Use “Copiar XML” e cole num arquivo .xml.";
+      }
+    };
+  };
+  draw();
+}
+
+/* ---------------- screen wake lock (keeps tablet awake while tagging) ---------------- */
+let wake=null;
+async function requestWake(){try{if(navigator.wakeLock&&!wake){wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>wake=null)}}catch(e){}}
+function releaseWake(){try{wake&&wake.release()}catch(e){}wake=null}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&cur)requestWake()});
+
+/* ---------------- boot ---------------- */
+store.loadLocal();
+if(!store.config.defaults)store.config.defaults={};
+if(!store.config.roster)store.config.roster=[];
+if(!store.config.protocols)store.config.protocols=[];
+let seeded=false;
+try{seeded=localStorage.getItem(LS_KEY+".seeded")==="1"}catch(e){}
+if(!Object.keys(store.analyses).length&&!seeded){const ex=exampleAnalysis();store.analyses[ex.id]=ex;store.saveLocal();try{localStorage.setItem(LS_KEY+".seeded","1")}catch(e){}}
+renderHome();
+store.connect().then(()=>{if(store.cloud){if(cur){const fresh=store.analyses[cur.id];if(fresh&&fresh!==cur){cur=fresh;renderAnalysis()}}else renderHome()}});
+})();
+</script>
