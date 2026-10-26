@@ -4,7 +4,7 @@ const CACHE = "dimas-tag-" + VERSION;
 const SHELL = [
   "./", "index.html", "manifest.webmanifest", "sw.js",
   "vendor/jszip.min.js", "vendor/xlsx.full.min.js",
-  "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"
+  "icons/icon-32.png", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-192-maskable.png", "icons/icon-512-maskable.png", "icons/apple-touch-icon.png"
 ];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

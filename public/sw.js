@@ -1,10 +1,10 @@
 /* DIMAS Tag — service worker: deixa o app disponível offline. Gerado por build.py. */
-const VERSION = "3b3ac0174a";
+const VERSION = "8876d35e1a";
 const CACHE = "dimas-tag-" + VERSION;
 const SHELL = [
   "./", "index.html", "manifest.webmanifest", "sw.js",
   "vendor/jszip.min.js", "vendor/xlsx.full.min.js",
-  "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"
+  "icons/icon-32.png", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-192-maskable.png", "icons/icon-512-maskable.png", "icons/apple-touch-icon.png"
 ];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

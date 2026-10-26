@@ -20,10 +20,6 @@ python3 -m http.server 8080
 
 > Abrir o `index.html` direto do disco (duplo clique) funciona para usar, mas o navegador não instala nem guarda o app offline por `file://`. Use um servidor local ou o Firebase.
 
-## Publicar no GitHub Pages (sem instalar nada)
-
-O workflow `.github/workflows/pages.yml` publica `public/` no GitHub Pages a cada push em `main`. Na primeira vez, se ele falhar por o Pages estar desligado: *Settings* → *Pages* → *Source*: **GitHub Actions**, e rode o workflow de novo em *Actions*. O app fica em `https://rennato158.github.io/Dimas-Tag/`; abra no Chrome e clique em **Instalar**.
-
 ## Publicar no Firebase Hosting
 
 Uma vez, no seu PC:
