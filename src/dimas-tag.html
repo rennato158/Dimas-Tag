@@ -703,7 +703,7 @@ function canvasBlob(c,q){return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(
 async function makePhoto(src){
   try{const assets=window.claude&&claude.use?await claude.use("assets"):null;
     if(assets){const c=cropRender(src,320);const r=await assets.upload(await canvasBlob(c,.85),{type:"image/jpeg"});return {asset:r.id}}}catch(e){}
-  return {data:cropRender(src,96).toDataURL("image/jpeg",.72)};
+  return {data:cropRender(src,256).toDataURL("image/jpeg",.8)};
 }
 /* src = {img, zoom, x, y, bg}: x/y are the image center offset in crop-units (0..1 of the crop side), zoom = scale over the cover size */
 function cropRender(src,size){
@@ -749,6 +749,41 @@ function openCropper(file,done){
     $("#cr-ok").onclick=()=>{$("#ovroot2").innerHTML="";done(src)};
   }).catch(()=>{toast("Não consegui ler essa imagem");done(null)});
 }
+/* ---------------- roster sync with the published page (elenco.json) ----------------
+   Export: downloads the roster with photos embedded, to be committed as public/elenco.json.
+   Sync: fetches elenco.json next to the app; replaces the roster, keeping ids of same-named athletes so tags stay linked. */
+async function photoDataURI(p){
+  const src=photoSrc(p);if(!src)return "";if(src.startsWith("data:"))return src;
+  try{const b=await (await fetch(src)).blob();return await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(b)})}catch(e){return ""}
+}
+async function exportRoster(rows){
+  const list=rows.filter(p=>String(p.name).trim());if(!list.length)return toast("Nenhum atleta para exportar");
+  toast("Preparando elenco…");
+  const athletes=[];for(const p of list){const d=await photoDataURI(p);athletes.push({name:String(p.name).trim(),pos:String(p.pos||"").trim(),cat:String(p.cat||"").trim(),...(d?{photo:{data:d}}:{})})}
+  const json=JSON.stringify({updatedAt:new Date().toISOString(),athletes},null,1);
+  try{
+    const dl=window.claude&&claude.use?await claude.use("downloads"):null;
+    if(dl){await dl.save({filename:"elenco.json",data:new Blob([json],{type:"application/json"})});toast("elenco.json salvo");return}
+  }catch(e){if(e&&e.code==="declined")return}
+  const u=URL.createObjectURL(new Blob([json],{type:"application/json"}));const el=document.createElement("a");el.href=u;el.download="elenco.json";document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);toast("elenco.json salvo");
+}
+function normName(n){return String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim()}
+async function syncRoster(o){
+  o=o||{};
+  if(window.claude&&claude.use&&!o.force)return null; /* inside the artifact there is no published elenco.json */
+  let data;
+  try{const r=await fetch("elenco.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;data=await r.json()}catch(e){if(!o.silent)toast("Não foi possível baixar o elenco da página");return null}
+  const list=Array.isArray(data&&data.athletes)?data.athletes.filter(p=>p&&String(p.name).trim()):[];
+  if(!list.length){if(!o.silent)toast("A página ainda não tem elenco publicado");return {applied:false}}
+  const stamp=String(data.updatedAt||"");
+  if(!o.force&&stamp&&stamp<=String(store.config.rosterSyncedAt||""))return {applied:false};
+  const old=roster(),byName=new Map(old.map(p=>[normName(p.name),p]));
+  const next=list.map(p=>{const ex=byName.get(normName(p.name));return {id:ex?ex.id:newId(),name:String(p.name).trim(),pos:String(p.pos||"").trim(),cat:String(p.cat||"").trim(),...(p.photo&&p.photo.data?{photo:{data:p.photo.data}}:(ex&&ex.photo?{photo:ex.photo}:{}))}});
+  try{store.config.roster=next;store.config.rosterSyncedAt=stamp||new Date().toISOString()}catch(e){store.config=Object.assign({},store.config,{roster:next,rosterSyncedAt:stamp})}
+  store.saveConfig();
+  if(!o.silent)toast("Elenco atualizado: "+next.length+" atletas");
+  return {applied:true,count:next.length};
+}
 function parseSheetRows(rows){
   rows=rows.map(r=>(r||[]).map(c=>c==null?"":String(c).trim())).filter(r=>r.some(Boolean));
   if(!rows.length)return [];
@@ -783,6 +818,8 @@ function openRoster(after){
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" type="button" id="ro-add">+ Adicionar atleta</button>
         <label class="btn" for="ro-sheet">Importar planilha</label><input type="file" id="ro-sheet" accept=".xlsx,.xls,.csv,.ods" hidden>
         <span class="muted" style="font-size:13px">Excel ou CSV com colunas Nome, Função e Categoria (cabeçalho opcional).</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><button class="btn" type="button" id="ro-export">Exportar elenco (JSON)</button><button class="btn" type="button" id="ro-sync">Atualizar da página</button>
+        <span class="muted" style="font-size:13px">O JSON com nomes, funções e fotos vai para a página publicada (elenco.json); "Atualizar da página" baixa essa lista para este aparelho.</span></div>
       <details><summary style="cursor:pointer;font-weight:600">Colar lista</summary>
         <div class="stack" style="margin-top:8px"><textarea id="ro-paste" rows="5" placeholder="Um atleta por linha: nome, função, categoria&#10;João Silva, Goleiro, Sub-17&#10;Pedro Lima, Meia, Sub-20"></textarea>
         <div><button class="btn" type="button" id="ro-import">Adicionar da lista</button></div></div></details>
@@ -808,6 +845,8 @@ function openRoster(after){
         draw();toast(`${added} atletas importados${upd?`, ${upd} atualizados`:""}. Clique em Salvar.`)}
       catch(err){toast("Não consegui ler a planilha. Use .xlsx ou .csv")}};
     $("#ro-cancel").onclick=closeOv;
+    $("#ro-export").onclick=()=>exportRoster(rows);
+    $("#ro-sync").onclick=async()=>{const r=await syncRoster({force:true,silent:false});if(r&&r.applied){rows=roster().map(p=>Object.assign({},p));draw()}};
     $("#ro-save").onclick=()=>{store.config.roster=rows.filter(p=>String(p.name).trim()).map(p=>({id:p.id,name:String(p.name).trim(),pos:String(p.pos||"").trim(),cat:String(p.cat||"").trim(),...(p.photo?{photo:p.photo}:{})}));
       store.saveConfig();closeOv();toast("Atletas salvos");after&&after()};
   };
@@ -1073,5 +1112,7 @@ try{seeded=localStorage.getItem(LS_KEY+".seeded")==="1"}catch(e){}
 if(!Object.keys(store.analyses).length&&!seeded){const ex=exampleAnalysis();store.analyses[ex.id]=ex;store.saveLocal();try{localStorage.setItem(LS_KEY+".seeded","1")}catch(e){}}
 renderHome();
 store.connect().then(()=>{if(store.cloud){if(cur){const fresh=store.analyses[cur.id];if(fresh&&fresh!==cur){cur=fresh;renderAnalysis()}}else renderHome()}});
+/* Standalone app: pull the published roster (elenco.json) when it is newer than the last sync. */
+if(!(window.claude&&claude.use)&&navigator.onLine){syncRoster({silent:true}).then(r=>{if(r&&r.applied){toast("Elenco atualizado da página: "+r.count+" atletas");if(!cur)renderHome()}}).catch(()=>{})}
 })();
 </script>
