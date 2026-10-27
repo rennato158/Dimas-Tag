@@ -307,6 +307,7 @@ const store={
   },
   ref(id){return this.db.collection("data/users/"+this.uid).doc(id)},
   push(id){
+    if(fb.on){fb.pushAnalysis(id);return}
     if(!this.db)return;
     clearTimeout(this.timers[id]);
     this.timers[id]=setTimeout(async()=>{
@@ -315,12 +316,112 @@ const store={
       catch(e){setSave(e&&e.code==="quota_exceeded"?"Espaço da conta cheio: salvo só neste navegador":"Salvo só neste navegador")}
     },700);
   },
-  pushConfig(){if(!this.db)return;this.ref("config").set(JSON.parse(JSON.stringify(this.config))).catch(()=>{})},
-  save(a){a.updatedAt=Date.now();this.analyses[a.id]=a;this.saveLocal();setSave(this.db?"Salvando…":"Salvo neste navegador");this.push(a.id)},
-  remove(id){delete this.analyses[id];this.saveLocal();if(this.db)this.ref(id).delete().catch(()=>{})},
+  pushConfig(){if(fb.on){fb.pushConfig();return}if(!this.db)return;this.ref("config").set(JSON.parse(JSON.stringify(this.config))).catch(()=>{})},
+  save(a){a.updatedAt=Date.now();this.analyses[a.id]=a;this.saveLocal();setSave(fb.on?(navigator.onLine?"Sincronizando…":"Salvo no aparelho, envia ao conectar"):(this.db?"Salvando…":"Salvo neste navegador"));this.push(a.id)},
+  remove(id){delete this.analyses[id];this.saveLocal();if(fb.on){fb.col("analyses").doc(id).delete().catch(()=>{});return}if(this.db)this.ref(id).delete().catch(()=>{})},
   saveConfig(){this.saveLocal();this.pushConfig()}
 };
 function setSave(t){store.status=t;const el=$("#savestate");if(el)el.textContent=t}
+
+/* ---------------- Firebase sync (standalone/PWA only) ----------------
+   Enabled when firebase-config.js defines window.FB_CONFIG and the Firebase compat SDK is loaded.
+   Data: users/{uid}/analyses/{id}, users/{uid}/athletes/{id} (photo as data URI), users/{uid}/meta/config.
+   Firestore keeps an offline cache and queues writes, so the app works offline and syncs when online. */
+const fb={
+  ready:false,on:false,user:null,unsub:[],timers:{},
+  init(){
+    if(!(window.FB_CONFIG&&window.firebase&&firebase.firestore))return;
+    try{
+      firebase.initializeApp(FB_CONFIG);
+      this.auth=firebase.auth();this.fs=firebase.firestore();
+      try{this.fs.settings({ignoreUndefinedProperties:true,merge:true})}catch(e){}
+      this.fs.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+      this.ready=true;
+      this.auth.onAuthStateChanged(u=>{this.user=u||null;this.on=!!u;if(u)this.attach();else this.detach();renderSyncState();if(!cur)renderHome()});
+    }catch(e){this.ready=false}
+  },
+  col(name){return this.fs.collection("users").doc(this.user.uid).collection(name)},
+  clean(o){return JSON.parse(JSON.stringify(o))},
+  attach(){
+    this.detach();const self=this;
+    /* analyses: remote newer wins, local newer is pushed */
+    this.unsub.push(this.col("analyses").onSnapshot(snap=>{
+      let changed=false;const seen=new Set();
+      snap.docChanges().forEach(ch=>{const id=ch.doc.id;seen.add(id);
+        if(ch.type==="removed"){if(store.analyses[id]&&!ch.doc.metadata.hasPendingWrites){delete store.analyses[id];changed=true}return}
+        const v=ch.doc.data();if(!v||v.kind!=="analysis")return;const loc=store.analyses[id];
+        if(!loc||(v.updatedAt||0)>(loc.updatedAt||0)){store.analyses[id]=v;changed=true}
+        else if((loc.updatedAt||0)>(v.updatedAt||0))self.pushAnalysis(id);
+      });
+      if(!snap.metadata.fromCache&&!self.seeded){self.seeded=true;const ids=new Set(snap.docs.map(d=>d.id));for(const id of Object.keys(store.analyses))if(!ids.has(id))self.pushAnalysis(id)}
+      if(changed){store.saveLocal();if(cur){const f=store.analyses[cur.id];if(f&&f!==cur){cur=f;renderAnalysis()}else if(!f){cur=null;renderHome();toast("Análise removida em outro aparelho")}}else renderHome()}
+      setSave(snap.metadata.hasPendingWrites?"Salvo no aparelho, envia ao conectar":"Sincronizado");
+    },()=>{}));
+    /* athletes */
+    this.unsub.push(this.col("athletes").onSnapshot(snap=>{
+      if(snap.empty&&snap.metadata.fromCache&&!self.rosterSeen)return;
+      self.rosterSeen=true;
+      if(snap.empty&&!snap.metadata.fromCache&&roster().length){self.pushRoster();return}
+      let list=snap.docs.map(d=>Object.assign({id:d.id},d.data())).sort((a,b)=>(a.order||0)-(b.order||0)||String(a.name).localeCompare(b.name));
+      /* first server snapshot after sign-in: keep local athletes the account does not have yet, then push them */
+      if(!snap.metadata.fromCache&&!self.rosterMerged){self.rosterMerged=true;const have=new Set(list.map(p=>normName(p.name)));const extra=roster().filter(p=>p.name&&!have.has(normName(p.name)));if(extra.length){list=list.concat(extra);try{store.config.roster=list}catch(e){store.config=Object.assign({},store.config,{roster:list})}store.saveLocal();self.pushRoster();if(!cur)renderHome();return}}
+      try{store.config.roster=list}catch(e){store.config=Object.assign({},store.config,{roster:list})}
+      store.saveLocal();if(!cur)renderHome();
+    },()=>{}));
+    /* meta/config: defaults + protocols */
+    this.unsub.push(this.col("meta").doc("config").onSnapshot(d=>{
+      const v=d.data();if(!v){if(!d.metadata.fromCache)self.pushConfig();return}
+      try{if(v.defaults)store.config.defaults=v.defaults;if(v.protocols)store.config.protocols=v.protocols}catch(e){store.config=Object.assign({},store.config,{defaults:v.defaults||{},protocols:v.protocols||[]})}
+      store.saveLocal();
+    },()=>{}));
+  },
+  detach(){this.unsub.forEach(u=>{try{u()}catch(e){}});this.unsub=[];this.seeded=false;this.rosterSeen=false;this.rosterMerged=false},
+  pushAnalysis(id){
+    if(!this.on)return;clearTimeout(this.timers[id]);
+    this.timers[id]=setTimeout(()=>{const a=store.analyses[id];if(!a)return;this.col("analyses").doc(id).set(this.clean(a)).then(()=>setSave("Sincronizado")).catch(()=>setSave("Salvo no aparelho, envia ao conectar"))},600);
+  },
+  pushRoster(){
+    if(!this.on)return;const list=roster();const batch=this.fs.batch();const ids=new Set();
+    list.forEach((p,i)=>{ids.add(p.id);const d=this.clean(Object.assign({},p,{order:i}));delete d.id;batch.set(this.col("athletes").doc(p.id),d)});
+    this.col("athletes").get().then(snap=>{snap.docs.forEach(d=>{if(!ids.has(d.id))batch.delete(d.ref)});return batch.commit()}).catch(()=>{});
+  },
+  pushConfig(){
+    if(!this.on)return;
+    this.pushRoster();
+    this.col("meta").doc("config").set(this.clean({defaults:store.config.defaults||{},protocols:store.config.protocols||[]})).catch(()=>{});
+  },
+  async signIn(email,pass){await this.auth.signInWithEmailAndPassword(email,pass)},
+  async signUp(email,pass){await this.auth.createUserWithEmailAndPassword(email,pass)},
+  async reset(email){await this.auth.sendPasswordResetEmail(email)},
+  async signOut(){await this.auth.signOut()}
+};
+function renderSyncState(){const b=$("#syncacct");if(!b)return;b.textContent=fb.on?"☁ "+(fb.user.email||"conta"):"☁ Entrar";b.title=fb.on?"Sincronização ativa · clique para sair ou trocar de conta":"Entrar para sincronizar entre aparelhos"}
+const FB_ERR={"auth/invalid-email":"E-mail inválido","auth/user-not-found":"Conta não encontrada","auth/wrong-password":"Senha incorreta","auth/invalid-credential":"E-mail ou senha incorretos","auth/email-already-in-use":"Já existe uma conta com esse e-mail","auth/weak-password":"Senha muito curta (mínimo 6 caracteres)","auth/network-request-failed":"Sem conexão com a internet","auth/too-many-requests":"Muitas tentativas, aguarde um pouco"};
+function openSync(){
+  const box=$("#ovroot");
+  if(!fb.ready){box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" style="width:min(520px,100%)"><h2>Sincronização</h2>
+    <p class="muted">A sincronização entre aparelhos ainda não está configurada nesta publicação. Falta o arquivo <code>firebase-config.js</code> com as chaves do projeto Firebase (veja o README do repositório).</p>
+    <div class="foot"><button class="btn" type="button" id="sy-close">Fechar</button></div></div></div>`;$("#sy-close").onclick=closeOv;return}
+  if(fb.on){box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" style="width:min(520px,100%)"><h2>Sincronização</h2>
+    <p>Conectado como <strong>${esc(fb.user.email||"")}</strong>. Análises, atletas, fotos e protocolos são sincronizados entre todos os aparelhos que entrarem com esta conta. Sem internet o app continua funcionando e envia tudo quando conectar.</p>
+    <div class="foot"><button class="btn danger ghost" type="button" id="sy-out">Sair da conta</button><button class="btn primary" type="button" id="sy-close">Fechar</button></div></div></div>`;
+    $("#sy-close").onclick=closeOv;$("#sy-out").onclick=async()=>{await fb.signOut();closeOv();toast("Você saiu da conta. Os dados continuam neste aparelho.")};return}
+  box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" style="width:min(460px,100%)"><h2>Entrar para sincronizar</h2>
+    <p class="muted" style="margin-top:0">Use a mesma conta em todos os aparelhos. Na primeira vez, crie a conta com um e-mail e uma senha de sua escolha.</p>
+    <form id="sy-form" class="stack">
+      <label class="f"><span>E-mail</span><input type="email" id="sy-email" autocomplete="username" required></label>
+      <label class="f"><span>Senha</span><input type="password" id="sy-pass" autocomplete="current-password" minlength="6" required></label>
+      <div class="muted" id="sy-msg" style="min-height:1.2em;font-size:13px"></div>
+      <div class="foot" style="justify-content:space-between"><button class="btn sm ghost" type="button" id="sy-reset">Esqueci a senha</button><div style="display:flex;gap:8px"><button class="btn" type="button" id="sy-cancel">Cancelar</button><button class="btn" type="button" id="sy-new">Criar conta</button><button class="btn primary" type="submit">Entrar</button></div></div>
+    </form></div></div>`;
+  const msg=t=>{$("#sy-msg").textContent=t};const err=e=>msg(FB_ERR[e&&e.code]||("Não foi possível entrar: "+((e&&e.message)||"")));
+  const vals=()=>[$("#sy-email").value.trim(),$("#sy-pass").value];
+  $("#sy-cancel").onclick=closeOv;
+  $("#sy-form").onsubmit=async e=>{e.preventDefault();msg("Entrando…");try{await fb.signIn(...vals());closeOv();toast("Sincronização ativada")}catch(x){err(x)}};
+  $("#sy-new").onclick=async()=>{const [em,pw]=vals();if(!em||pw.length<6)return msg("Informe e-mail e uma senha com pelo menos 6 caracteres");msg("Criando conta…");try{await fb.signUp(em,pw);closeOv();toast("Conta criada. Sincronização ativada")}catch(x){err(x)}};
+  $("#sy-reset").onclick=async()=>{const [em]=vals();if(!em)return msg("Informe o e-mail para receber o link de redefinição");try{await fb.reset(em);msg("Enviamos um e-mail para redefinir a senha")}catch(x){err(x)}};
+  $("#sy-email").focus();
+}
 
 /* ---------------- time helpers ---------------- */
 const now=()=>Date.now();
@@ -361,7 +462,7 @@ function renderHome(){
       <div class="brand">
         <h1>DIMAS <span class="hub">Tag</span></h1>
       </div>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="savestate" id="savestate">${esc(store.cloud?"Análises salvas na sua conta":"Análises salvas neste navegador")}</span><button class="btn" type="button" id="roster">Atletas (${roster().length})</button>${themeBtn()}</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="savestate" id="savestate">${esc(fb.on?(store.status||"Sincronizado"):store.cloud?"Análises salvas na sua conta":"Análises salvas neste navegador")}</span><button class="btn" type="button" id="roster">Atletas (${roster().length})</button>${fb.ready?`<button class="btn" type="button" id="syncacct">☁ Entrar</button>`:""}${themeBtn()}</div>
     </header>
     <div class="home-grid">
       <section class="panel">
@@ -397,7 +498,7 @@ function renderHome(){
     </div>
   </div>`;
   $$(".seg button").forEach(b=>b.onclick=()=>{newType=b.dataset.type;const t=$("#nf-title").value,c=$("#nf-cat").value,d=$("#nf-date").value;renderHome();$("#nf-title").value=t;$("#nf-cat").value=c;$("#nf-date").value=d});
-  $("#roster").onclick=()=>openRoster(renderHome);wireTheme();
+  $("#roster").onclick=()=>openRoster(renderHome);wireTheme();if($("#syncacct")){$("#syncacct").onclick=openSync;renderSyncState()}
   $("#newform").onsubmit=e=>{e.preventDefault();
     const a=newAnalysis(newType,$("#nf-title").value.trim(),{data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()});
     const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id}}
@@ -1110,6 +1211,7 @@ if(!store.config.protocols)store.config.protocols=[];
 let seeded=false;
 try{seeded=localStorage.getItem(LS_KEY+".seeded")==="1"}catch(e){}
 if(!Object.keys(store.analyses).length&&!seeded){const ex=exampleAnalysis();store.analyses[ex.id]=ex;store.saveLocal();try{localStorage.setItem(LS_KEY+".seeded","1")}catch(e){}}
+fb.init();
 renderHome();
 store.connect().then(()=>{if(store.cloud){if(cur){const fresh=store.analyses[cur.id];if(fresh&&fresh!==cur){cur=fresh;renderAnalysis()}}else renderHome()}});
 /* Standalone app: pull the published roster (elenco.json) when it is newer than the last sync. */

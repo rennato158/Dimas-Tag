@@ -10,6 +10,9 @@ src = (root / "src" / "dimas-tag.html").read_text(encoding="utf-8")
 src = src.replace('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'vendor/jszip.min.js')
 src = src.replace('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'vendor/xlsx.full.min.js')
 src = re.sub(r'<meta name="claude:viewport-fit-sides"[^>]*>\n?', '', src)
+# Firebase (sincronização entre aparelhos): SDK local + chaves do projeto, antes do script do app
+src = src.replace('<script src="vendor/xlsx.full.min.js"></script>',
+    '<script src="vendor/xlsx.full.min.js"></script>\n<script src="vendor/firebase-app-compat.js"></script>\n<script src="vendor/firebase-auth-compat.js"></script>\n<script src="vendor/firebase-firestore-compat.js"></script>\n<script src="firebase-config.js"></script>')
 
 head = '''<!doctype html>
 <html lang="pt-BR">
