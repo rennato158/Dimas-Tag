@@ -112,14 +112,18 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .drawer-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:12px 12px 10px;border-bottom:1px solid var(--line)}
 .clocks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .clocks.one{grid-template-columns:minmax(0,1fr)}
-.clocks.one .clock{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"row row row" "time name sync" "time ctrls sync";column-gap:24px;align-items:center}
+.clocks.one .clock{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"row row row" "time name sync" "time ctrls list";column-gap:24px;align-items:center}
+.blocklist{grid-area:list;justify-self:end;align-self:start;font-size:13px;line-height:1.5;min-width:190px;text-align:left}
+.blocklist .bl{display:flex;justify-content:space-between;gap:14px}.blocklist .bl b{font-weight:600}
+.blocklist .hy{color:var(--muted);padding-left:12px}.blocklist .live{color:var(--accent-dark);font-weight:700}
 .themebtn{width:36px;height:36px;padding:0!important;border-radius:50%;flex:none}
 .themebtn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .btn.sync{border-color:var(--fg);font-weight:600}
 .btn.sync .kk{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
 .sw.sync{background:var(--fg)!important;border-radius:50%}
 .clocks.one .row{grid-area:row}.clocks.one .time{grid-area:time;font-size:clamp(44px,7vw,64px)}.clocks.one .sessname{grid-area:name}.clocks.one .ctrls{grid-area:ctrls}
-@media (max-width:560px){.clocks.one .clock{grid-template-columns:minmax(0,1fr);grid-template-areas:"row" "time" "name" "ctrls" "sync"}}
+@media (max-width:560px){.clocks.one .clock{grid-template-columns:minmax(0,1fr);grid-template-areas:"row" "time" "name" "ctrls" "sync" "list"}}
+@media (max-width:560px){.blocklist{justify-self:stretch;margin-top:8px}}
 @media (max-width:520px){.clocks{grid-template-columns:minmax(0,1fr)}}
 .clock{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
 .clock.running{border-color:var(--accent)}
@@ -564,11 +568,12 @@ function renderAnalysis(){
       <div>
         <div class="clocks one">
           <div class="clock" id="c-ses">
-            <div class="row"><span class="eyebrow">Tempo do ${W(a).n}</span><span class="taskinfo num" id="taskinfo" title="${W(a).N}s da tarefa · tempo total"></span><span class="dot"></span></div>
+            <div class="row"><span class="eyebrow">Tempo do ${W(a).n}</span><span class="dot"></span></div>
             <div class="time" id="t-ses">00:00</div>
             <div class="sessname" id="sessname"></div>
             <div class="ctrls" id="ctl-ses"></div>
             <div class="ctrls" style="grid-area:sync"><button class="btn sync" id="syncbtn" type="button" title="Marca o apito inicial no tempo atual (tecla 0)">⏱ Sincronia <span class="kk">0</span></button></div>
+            <div class="blocklist num" id="blocklist" aria-live="off"></div>
           </div>
         </div>
         <div class="section-h"><h2>Botões de tag</h2>
@@ -657,11 +662,27 @@ function sesAction(act){
   }
   store.save(a);renderClocks();renderLog();
 }
+/* Blocks with their task time, and the "hidratação" (hydration) pauses between them.
+   A pause runs from the end of one block to the start of the next; after the last ended block it counts live until the next starts. */
+function blockRows(a){
+  const rows=[],ss=a.sessions,g=genSec(),w=W(a),open=a.clock.session&&a.clock.session.open;
+  ss.forEach((x,i)=>{
+    const live=x.end==null,dur=live?clockMs(a.clock.session)/1000:(x.duration!=null?x.duration:Math.max(0,x.end-x.start));
+    rows.push({kind:"block",name:x.name||(w.N+" "+(i+1)),sec:dur,live});
+    if(!live){const nx=ss[i+1];if(nx)rows.push({kind:"hy",sec:Math.max(0,nx.start-x.end),live:false});else if(!open&&a.clock.general.running)rows.push({kind:"hy",sec:Math.max(0,g-x.end),live:true})}
+  });
+  return rows;
+}
+function blockListHTML(a){
+  return blockRows(a).map(r=>r.kind==="block"
+    ?`<div class="bl"><b>${esc(r.name)}:</b><span class="${r.live?"live":""}">${fmtS(r.sec)}</span></div>`
+    :`<div class="bl hy"><span>Hidratação:</span><span class="${r.live?"live":""}">${fmtS(r.sec)}</span></div>`).join("");
+}
 function updateTimes(){
   if(!cur)return;
   const ts=$("#t-ses");if(!ts)return;
   ts.textContent=fmt(clockMs(cur.clock.session));
-  const ti=$("#taskinfo");if(ti){const n=cur.sessions.length,w=W(cur);ti.textContent=n?`${n} ${n===1?w.n:w.n+"s"} · ${fmt(taskMs(cur))}`:""}
+  const bl=$("#blocklist");if(bl){const h=blockListHTML(cur);if(h!==bl.innerHTML)bl.innerHTML=h}
   for(const [bid,st] of Object.entries(cur.openToggles||{})){const el=$(`[data-live="${bid}"]`);if(el)el.textContent="gravando "+fmtS(Math.max(0,genSec()-st.start))}
 }
 function startTick(){stopTick();tick=setInterval(updateTimes,200)}
@@ -1127,7 +1148,8 @@ function buildXML(a,opts){
   for(const [bid,o] of Object.entries(a.openToggles||{})){const b=a.buttons.find(x=>x.id===bid);if(b)tags.push({btn:bid,code:b.name,start:o.start,end:Math.max(gNow,o.start+0.1),session:o.session,st:o.st,athletes:o.athletes||[],note:"(aberto ao exportar)"})}
   const inst=[];
   tags.sort((x,y)=>x.start-y.start).forEach(t=>inst.push({start:t.start,end:t.end,code:t.code,labels:[...(W(a).single?[]:[[W(a).N,t.session]]),["Grupo",t.sync?"":grp(btnOf(a,t.btn))],...tagAthLabels(t).map(l=>["Atleta",l]),["Tipo",t.scope],["Comportamento-chave",t.kb],["Conceito",t.cp],["Avaliação",t.rating],...(t.pos?[["X",String(t.pos.x)],["Y",String(t.pos.y)]]:[]),["Nota",t.note]].filter(l=>l[1])}));
-  if(opts.sessions&&!W(a).single)a.sessions.forEach(s=>inst.push({start:s.start,end:s.end==null?gNow:s.end,code:W(a).N,labels:[[W(a).N,s.name]]}));
+  if(opts.sessions&&!W(a).single){a.sessions.forEach(s=>inst.push({start:s.start,end:s.end==null?gNow:s.end,code:W(a).N,labels:[[W(a).N,s.name]]}));
+    a.sessions.forEach((s,i)=>{const nx=a.sessions[i+1];if(s.end!=null&&nx&&nx.start>s.end+0.5)inst.push({start:s.end,end:nx.start,code:"Pausa para hidratação",labels:[[W(a).N,s.name+" → "+nx.name]]})});}
   inst.sort((x,y)=>x.start-y.start);
   const info=INFO_FIELDS[a.type].map(([k,l])=>[l,a.info[k]]).filter(x=>x[1]!==undefined&&x[1]!=="");
   const lines=['<?xml version="1.0" encoding="utf-8"?>'];
