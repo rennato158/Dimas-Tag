@@ -132,6 +132,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 @keyframes blink{50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.running .dot,.tagbtn.open{animation:none!important}}
 .sessname{display:flex;gap:6px}
+.taskinfo{margin-left:auto;margin-right:10px;font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.02em}
 .sessname select,.sessname input{flex:1}
 .section-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 10px;flex-wrap:wrap}
 .section-h h2{font-size:22px}
@@ -563,7 +564,7 @@ function renderAnalysis(){
       <div>
         <div class="clocks one">
           <div class="clock" id="c-ses">
-            <div class="row"><span class="eyebrow">Tempo do ${W(a).n}</span><span class="dot"></span></div>
+            <div class="row"><span class="eyebrow">Tempo do ${W(a).n}</span><span class="taskinfo num" id="taskinfo" title="${W(a).N}s da tarefa · tempo total"></span><span class="dot"></span></div>
             <div class="time" id="t-ses">00:00</div>
             <div class="sessname" id="sessname"></div>
             <div class="ctrls" id="ctl-ses"></div>
@@ -660,6 +661,7 @@ function updateTimes(){
   if(!cur)return;
   const ts=$("#t-ses");if(!ts)return;
   ts.textContent=fmt(clockMs(cur.clock.session));
+  const ti=$("#taskinfo");if(ti){const n=cur.sessions.length,w=W(cur);ti.textContent=n?`${n} ${n===1?w.n:w.n+"s"} · ${fmt(taskMs(cur))}`:""}
   for(const [bid,st] of Object.entries(cur.openToggles||{})){const el=$(`[data-live="${bid}"]`);if(el)el.textContent="gravando "+fmtS(Math.max(0,genSec()-st.start))}
 }
 function startTick(){stopTick();tick=setInterval(updateTimes,200)}
