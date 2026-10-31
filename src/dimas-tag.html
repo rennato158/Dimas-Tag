@@ -201,6 +201,14 @@ pre.xml{background:var(--surface-2);border-radius:8px;padding:12px;font-family:v
 .pitch line,.pitch rect,.pitch circle.l,.pitch path{stroke:#eaf5ec;stroke-width:.6;fill:none}
 .pitch .mark{fill:var(--accent);stroke:#fff;stroke-width:.8}
 .pitch .arrow{fill:rgba(255,255,255,.35);stroke:none}
+.pitch.white{background:#fff;box-shadow:inset 0 0 0 1px #d4d4d8}
+.pitch.white line,.pitch.white rect,.pitch.white circle.l,.pitch.white path{stroke:#9ca3af}
+.pitch.white .arrow{fill:rgba(0,0,0,.18)}
+.pcfg{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px}
+.pcfg[hidden]{display:none}
+.pcfg label{display:flex;gap:6px;align-items:center;white-space:nowrap}
+.pcfg input[type=number]{width:72px;padding:5px 8px}
+.pcfg select{width:auto;padding:5px 28px 5px 8px}
 .coord{font-family:var(--f-mono);font-size:13px;color:var(--muted);min-height:1.4em}
 .qp-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .qp-h .tagname{font-family:var(--f-display);font-weight:700;font-size:16px;padding:3px 10px;border-radius:4px;color:#111}
@@ -531,7 +539,7 @@ function renderHome(){
   $("#nf-newproto").onclick=()=>{const d=newAnalysis(newType,"Protocolo");d.protocol=null;openButtonEditor({draft:d,after:renderHome})};
   $("#newform").onsubmit=e=>{e.preventDefault();
     const a=newAnalysis(newType,$("#nf-title").value.trim(),Object.assign({data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()},newType==="jogo"?{competicao:($("#nf-comp")||{value:""}).value.trim(),rodada:($("#nf-rod")||{value:""}).value.trim()}:{}));
-    const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch}}
+    const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg)}}
     store.save(a);openAnalysis(a.id)};
   $$("[data-open]").forEach(el=>{
     el.onclick=e=>{if(e.target.closest("[data-delwrap]"))return;openAnalysis(el.dataset.open)};
@@ -738,25 +746,27 @@ function fireSync(){
   toast("Sincronia · apito inicial · "+fmtS(t));
 }
 /* pitch map: 105 x 68 m drawn in a 0..100 x 0..100 coordinate space (x along the length, attack left→right; y along the width, 0 at the top) */
-function pitchSVG(pos){
-  return `<svg class="pitch" id="pitch" viewBox="-2 -2 109 72" aria-label="Campograma" role="img">
+const pcfg=a=>{const c=(a&&a.pitchCfg)||{};return {w:+c.w>0?+c.w:100,h:+c.h>0?+c.h:100,theme:c.theme==="white"?"white":"green"}};
+const posW=p=>+p.w>0?+p.w:100,posH=p=>+p.h>0?+p.h:100;
+function pitchSVG(pos,cfg){cfg=cfg||pcfg(cur);
+  return `<svg class="pitch ${cfg.theme}" id="pitch" viewBox="-2 -2 109 72" aria-label="Campograma" role="img">
     <rect x="0" y="0" width="105" height="68"/><line x1="52.5" y1="0" x2="52.5" y2="68"/><circle class="l" cx="52.5" cy="34" r="9.15"/>
     <rect x="0" y="13.84" width="16.5" height="40.32"/><rect x="88.5" y="13.84" width="16.5" height="40.32"/>
     <rect x="0" y="24.84" width="5.5" height="18.32"/><rect x="99.5" y="24.84" width="5.5" height="18.32"/>
     <path d="M16.5 26.7 A9.15 9.15 0 0 1 16.5 41.3"/><path d="M88.5 26.7 A9.15 9.15 0 0 0 88.5 41.3"/>
     <circle class="l" cx="11" cy="34" r=".6"/><circle class="l" cx="94" cy="34" r=".6"/><circle class="l" cx="52.5" cy="34" r=".6"/>
     <path class="arrow" d="M44 63 h12 v-2.2 l5 3.4 -5 3.4 v-2.2 h-12z"/>
-    ${pos?`<circle class="mark" cx="${(pos.x/100*105).toFixed(2)}" cy="${(pos.y/100*68).toFixed(2)}" r="1.8"/>`:""}
+    ${pos?`<circle class="mark" cx="${(pos.x/posW(pos)*105).toFixed(2)}" cy="${(pos.y/posH(pos)*68).toFixed(2)}" r="1.8"/>`:""}
   </svg>`}
-function wirePitch(root,tag,onSet){
+function wirePitch(root,tag,onSet,cfg){cfg=cfg||pcfg(cur);
   const svg=$("#pitch",root);
   const set=e=>{const r=svg.getBoundingClientRect();
     /* viewBox has a 2-unit margin on each side */
     const vx=(e.clientX-r.left)/r.width*109-2,vy=(e.clientY-r.top)/r.height*72-2;
     const x=Math.max(0,Math.min(100,vx/105*100)),y=Math.max(0,Math.min(100,vy/68*100));
-    tag.pos={x:Math.round(x*10)/10,y:Math.round(y*10)/10};
+    tag.pos={x:Math.round(x*cfg.w/10)/10,y:Math.round(y*cfg.h/10)/10,w:cfg.w,h:cfg.h};
     let m=svg.querySelector(".mark");if(!m){m=document.createElementNS("http://www.w3.org/2000/svg","circle");m.setAttribute("class","mark");m.setAttribute("r","1.8");svg.appendChild(m)}
-    m.setAttribute("cx",(tag.pos.x/100*105).toFixed(2));m.setAttribute("cy",(tag.pos.y/100*68).toFixed(2));onSet&&onSet()};
+    m.setAttribute("cx",(tag.pos.x/posW(tag.pos)*105).toFixed(2));m.setAttribute("cy",(tag.pos.y/posH(tag.pos)*68).toFixed(2));onSet&&onSet()};
   svg.onpointerdown=e=>{e.preventDefault();set(e)};
 }
 function openTagPitch(tagId){
@@ -796,7 +806,7 @@ function quickPick(b,tag,opts){
   const stepPitch=()=>{
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Posição no campo" style="width:min(640px,100%)">
       ${head(opts.ratingOnly||opts.pitchOnly?"posição no campo":lbl(cur.type==="jogo"?"2 de 2":"3 de 3","posição no campo"))}
-      <div class="pitchwrap">${pitchSVG(tag.pos)}<div class="coord" id="pt-coord">${tag.pos?`x ${tag.pos.x} · y ${tag.pos.y}`:"Toque no campo para marcar. Ataque da esquerda para a direita."}</div></div>
+      <div class="pitchwrap">${pitchSVG(tag.pos)}<div class="coord" id="pt-coord">${tag.pos?`x ${tag.pos.x} · y ${tag.pos.y}`:"Toque no campo para marcar (X 0–"+pcfg(cur).w+", Y 0–"+pcfg(cur).h+"). Ataque da esquerda para a direita."}</div></div>
       <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem posição</button><button class="btn primary" type="button" id="pt-ok" ${tag.pos?"":"disabled"}>Confirmar</button></div></div></div>`;
     wirePitch(box,tag,()=>{$("#pt-ok").disabled=false;$("#pt-coord").textContent=`x ${tag.pos.x} · y ${tag.pos.y}`});
     $("#qp-skip").onclick=()=>{delete tag.pos;finish()};
@@ -1105,6 +1115,7 @@ function openButtonEditor(opts){
         <div class="proto-row">
           <input type="text" id="pr-name" placeholder="Nome do novo protocolo (ex.: Posse · Sub-17)" style="flex:1 1 220px" value="${esc((protocols().find(p=>p.id===a.protocol)||{}).name||"")}">
           <label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="pr-pitch" ${usePitch(a)?"checked":""}> Descritor gráfico (campograma X/Y)</label>
+          <span class="pcfg" id="pr-pcfg" ${usePitch(a)?"":"hidden"}><label>Largura X <input type="number" min="1" step="any" id="pr-pw" value="${pcfg(a).w}"></label><label>Altura Y <input type="number" min="1" step="any" id="pr-ph" value="${pcfg(a).h}"></label><label>Campo <select id="pr-pth"><option value="green" ${pcfg(a).theme==="green"?"selected":""}>Verde · linhas brancas</option><option value="white" ${pcfg(a).theme==="white"?"selected":""}>Branco · linhas cinzas</option></select></label><button class="btn sm ghost" type="button" id="pr-pprev">👁 Ver campo</button></span>
           <select id="pr-type" aria-label="Tipo do protocolo" style="width:auto"><option value="jogo" ${((protocols().find(p=>p.id===a.protocol)||{}).type||a.type)==="jogo"?"selected":""}>Jogo</option><option value="treino" ${((protocols().find(p=>p.id===a.protocol)||{}).type||a.type)==="treino"?"selected":""}>Treino</option></select>
           <button class="btn sm" type="button" id="pr-save">Salvar estes botões como protocolo</button>
         </div>
@@ -1122,14 +1133,18 @@ function openButtonEditor(opts){
     $("#be-add").onclick=()=>{rows.push(B("Novo tag","#a5b4fc","",undefined,5,5,"Conceitos"));draw();const ins=$$("#ovroot [data-f=name]");ins[ins.length-1].focus()};
     $("#be-restore").onclick=()=>{rows=(store.config.defaults[a.type]||defaultButtons(a.type)).map(b=>Object.assign({},b,{id:newId()}));draw();toast("Botões padrão carregados. Clique em Salvar.")};
     const selProto=()=>protocols().find(p=>p.id===$("#pr-sel").value);
-    $("#pr-pitch").onchange=e=>{a.pitch=e.target.checked;saveA()};
+    const readCfg=()=>({w:Math.max(1,parseFloat($("#pr-pw").value)||100),h:Math.max(1,parseFloat($("#pr-ph").value)||100),theme:$("#pr-pth").value});
+    $("#pr-pitch").onchange=e=>{a.pitch=e.target.checked;$("#pr-pcfg").hidden=!a.pitch;saveA()};
+    ["#pr-pw","#pr-ph","#pr-pth"].forEach(id=>$(id).onchange=()=>{a.pitchCfg=readCfg();saveA()});
+    $("#pr-pprev").onclick=()=>{const c=readCfg(),t={};$("#ovroot2").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Prévia do campograma" style="width:min(640px,100%)"><h2 style="font-size:20px">Prévia do campograma</h2><div class="pitchwrap">${pitchSVG(null,c)}<div class="coord" id="pv-coord">Toque no campo: X de 0 a ${c.w}, Y de 0 a ${c.h}</div></div><div class="foot"><button class="btn primary" type="button" id="pv-ok">Fechar</button></div></div></div>`;
+      wirePitch($("#ovroot2"),t,()=>{$("#pv-coord").textContent=`x ${t.pos.x} · y ${t.pos.y}`},c);$("#pv-ok").onclick=()=>{$("#ovroot2").innerHTML=""}};
     $("#pr-save").onclick=()=>{const name=$("#pr-name").value.trim();if(!name)return toast("Dê um nome ao protocolo");const btns=cleanBtns(rows);if(!btns.length)return toast("Nenhum botão para salvar");
       const ex=protocols().find(p=>p.name.toLowerCase()===name.toLowerCase());
       const ptype=$("#pr-type").value||a.type;
-      const ppitch=$("#pr-pitch").checked;a.pitch=ppitch;
-      if(ex){ex.buttons=btns;ex.type=ptype;ex.pitch=ppitch;ex.updatedAt=Date.now();a.protocol=ex.id;toast("Protocolo atualizado: "+name)}else{const pr={id:"pr"+newId(),name,type:ptype,pitch:ppitch,buttons:btns,createdAt:Date.now()};protocols().push(pr);a.protocol=pr.id;toast("Protocolo salvo: "+name)}
+      const ppitch=$("#pr-pitch").checked,pcf=readCfg();a.pitch=ppitch;a.pitchCfg=pcf;
+      if(ex){ex.buttons=btns;ex.type=ptype;ex.pitch=ppitch;ex.pitchCfg=pcf;ex.updatedAt=Date.now();a.protocol=ex.id;toast("Protocolo atualizado: "+name)}else{const pr={id:"pr"+newId(),name,type:ptype,pitch:ppitch,pitchCfg:pcf,buttons:btns,createdAt:Date.now()};protocols().push(pr);a.protocol=pr.id;toast("Protocolo salvo: "+name)}
       store.saveConfig();saveA();refreshProtoSel(a);draw()};
-    $("#pr-load").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");rows=pr.buttons.filter(b=>GROUPS.includes(b.group)).map(b=>Object.assign({},b,{id:newId()}));a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;draw();toast("Protocolo carregado. Clique em Salvar botões.")};
+    $("#pr-load").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");rows=pr.buttons.filter(b=>GROUPS.includes(b.group)).map(b=>Object.assign({},b,{id:newId()}));a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);draw();toast("Protocolo carregado. Clique em Salvar botões.")};
     $("#pr-del").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");const box=$("#pr-apply-box");box.hidden=false;
       box.innerHTML=`<div class="confirm">Excluir o protocolo “${esc(pr.name)}”? As análises que o usam mantêm seus botões. <button class="btn sm danger" type="button" id="pr-del-yes">Excluir</button><button class="btn sm" type="button" id="pr-del-no">Cancelar</button></div>`;
       $("#pr-del-yes").onclick=()=>{store.config.protocols=protocols().filter(p=>p.id!==pr.id);Object.values(store.analyses).forEach(x=>{if(x.protocol===pr.id)x.protocol=null});store.saveConfig();store.saveLocal();refreshProtoSel(a);draw();toast("Protocolo excluído")};
@@ -1139,7 +1154,7 @@ function openButtonEditor(opts){
       box.innerHTML=`<div class="stack" style="gap:8px"><div class="muted" style="font-size:13px">Aplicar “${esc(pr.name)}” em:</div>
         ${list.length?`<div class="picker">${list.map(x=>`<label><input type="checkbox" value="${x.id}" ${x.type===pr.type?"checked":""}> <span class="typebadge ${x.type}" style="font-size:10px">${x.type}</span> <span>${esc(x.title)}${x.protocol===pr.id?' <span class="muted">(já usa)</span>':""}</span></label>`).join("")}</div>`:`<div class="muted">Nenhuma outra análise cadastrada.</div>`}
         <div class="confirm"><button class="btn sm primary" type="button" id="pr-apply-yes" ${list.length?"":"disabled"}>Aplicar</button><button class="btn sm" type="button" id="pr-apply-no">Cancelar</button></div></div>`;
-      $("#pr-apply-yes").onclick=()=>{const ids=$$("#pr-apply-box input:checked").map(i=>i.value);let n=0;ids.forEach(id=>{const x=store.analyses[id];if(x){applyButtons(x,pr.buttons);if(pr.pitch!==undefined)x.pitch=pr.pitch;x.protocol=pr.id;store.save(x);n++}});draw();toast(n+" análise(s) atualizada(s)")};
+      $("#pr-apply-yes").onclick=()=>{const ids=$$("#pr-apply-box input:checked").map(i=>i.value);let n=0;ids.forEach(id=>{const x=store.analyses[id];if(x){applyButtons(x,pr.buttons);if(pr.pitch!==undefined)x.pitch=pr.pitch;if(pr.pitchCfg)x.pitchCfg=Object.assign({},pr.pitchCfg);x.protocol=pr.id;store.save(x);n++}});draw();toast(n+" análise(s) atualizada(s)")};
       $("#pr-apply-no").onclick=draw};
     $("#be-cancel").onclick=()=>{closeOv();if(draft&&opts.after)opts.after()};
     if(draft){$("#be-psave").onclick=()=>{$("#pr-save").click();if(a.protocol){closeOv();opts.after&&opts.after()}};const ap=$("#pr-apply");if(ap)ap.hidden=true;return}
@@ -1155,7 +1170,7 @@ function openButtonEditor(opts){
 /* ---------------- protocols: named button sets, shared by all analyses ---------------- */
 function protoSelHTML(a){const list=protocols().filter(p=>(p.type||a.type)===a.type);
   return `<select class="protosel" id="protosel" aria-label="Protocolo" ${list.length?"":"disabled"}><option value="" ${list.some(p=>p.id===a.protocol)?"":"selected"} disabled>${list.length?"Protocolo…":"Nenhum protocolo de "+a.type}</option>${list.map(p=>`<option value="${p.id}" ${a.protocol===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select>`}
-function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
+function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
 function refreshProtoSel(a){const el=$("#protosel");if(!el)return;el.outerHTML=protoSelHTML(a);wireProtoSel(a)}
 function protocols(){if(!store.config.protocols){try{store.config.protocols=[]}catch(e){store.config=Object.assign({},store.config,{protocols:[]})}}return store.config.protocols}
 const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false}));

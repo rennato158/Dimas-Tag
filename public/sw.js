@@ -1,5 +1,5 @@
 /* DIMAS Tag — service worker: deixa o app disponível offline. Gerado por build.py. */
-const VERSION = "7444540ede";
+const VERSION = "28572276fe";
 const CACHE = "dimas-tag-" + VERSION;
 const SHELL = [
   "./", "index.html", "manifest.webmanifest", "sw.js",
