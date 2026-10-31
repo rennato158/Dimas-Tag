@@ -154,6 +154,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tagbtn.open{outline:2px solid var(--fg);outline-offset:0;box-shadow:0 0 0 3px rgba(229,83,61,.35);animation:pulse 1s infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 3px rgba(229,83,61,.05)}}
 .tagbtn .name{overflow-wrap:break-word;hyphens:auto;font-size:18px}
+.tagbtn.desc{background:var(--surface);color:var(--fg);border:2px dashed var(--dc);min-height:56px;box-shadow:none}
+.tagbtn.desc .m{color:var(--muted)}
+.dpill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;border:1px dashed var(--muted);margin:2px 3px 0 0;font-family:var(--f-body,inherit)}
 .hint{font-size:13px;color:var(--muted);margin-top:8px}
 details.data{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
 details.data summary{cursor:pointer;padding:12px 16px;font-family:var(--f-display);font-size:20px;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:8px}
@@ -726,14 +729,25 @@ function renderPad(){
       <span class="name">${esc(b.name)}</span>
       <span class="m" ${open?`data-live="${b.id}"`:""}>${open?"gravando…":(b.mode==="toggle"?"liga / desliga":`−${b.lead}s / +${b.lag}s`)}</span>
     </button>`};
-  const used=GROUPS.filter(g=>a.buttons.some(b=>grp(b)===g));
+  const isD=b=>b.kind==="descritor",cats=a.buttons.filter(b=>!isD(b)),descs=a.buttons.filter(isD);
+  const dbtn=b=>`<button class="tagbtn desc" type="button" data-tag="${b.id}" style="--dc:${esc(b.color)}"><span class="name">${esc(b.name)}</span><span class="m">descritor</span></button>`;
+  const used=GROUPS.filter(g=>cats.some(b=>grp(b)===g));
   $("#pad").innerHTML=`<div class="padgrp action-row"><div class="pad-inner">${btn(ACTION_BTN).replace('class="tagbtn ','class="tagbtn action ')}</div></div>`+(a.buttons.length
-    ?used.map(g=>`<div class="padgrp"><div class="eyebrow">${esc(g)}</div><div class="pad-inner">${a.buttons.filter(b=>grp(b)===g).map(btn).join("")}</div></div>`).join("")
+    ?used.map(g=>`<div class="padgrp"><div class="eyebrow">${esc(g)}</div><div class="pad-inner">${cats.filter(b=>grp(b)===g).map(btn).join("")}</div></div>`).join("")+(descs.length?`<div class="padgrp"><div class="eyebrow">Descritores <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">· entram na última tag</span></div><div class="pad-inner">${descs.map(dbtn).join("")}</div></div>`:"")
     :`<div class="empty">Nenhum botão. Use “Editar botões”.</div>`);
   $$("[data-tag]").forEach(el=>el.onclick=()=>fireTag(el.dataset.tag));
 }
+function applyDescriptor(a,b){
+  const el=$(`[data-tag="${b.id}"]`);if(el){el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),140)}
+  const last=a.tags.filter(t=>!t.sync).sort((x,y)=>(y.createdAt||0)-(x.createdAt||0))[0];
+  if(!last){toast("Marque primeiro um botão de categoria");return}
+  last.desc=last.desc||[];const i=last.desc.indexOf(b.name);
+  if(i>=0){last.desc.splice(i,1);toast(b.name+" removido de "+last.code)}else{last.desc.push(b.name);toast(b.name+" → "+last.code+" · "+fmtS(last.start))}
+  store.save(a);renderLog();
+}
 function fireTag(bid){
   const a=cur,b=btnOf(a,bid);if(!b)return;
+  if(b.kind==="descritor"){applyDescriptor(a,b);return}
   const g=a.clock.general;
   if(!g.running&&clockMs(g)===0){toast(W(a).single?"Inicie a sessão antes de taguear":"Inicie o período antes de taguear");return}
   const t=genSec(),os=openSession(),sess=os?os.name:"",st=os?sessSec():null;
@@ -765,7 +779,10 @@ function fireSync(){
   toast("Sincronia · apito inicial · "+fmtS(t));
 }
 /* pitch map: 105 x 68 m drawn in a 0..100 x 0..100 coordinate space (x along the length, attack left→right; y along the width, 0 at the top) */
-const pcfg=a=>{const c=(a&&a.pitchCfg)||{};return {w:+c.w>0?+c.w:100,h:+c.h>0?+c.h:100,theme:c.theme==="white"?"white":"green"}};
+const pcfg=a=>{const c=(a&&a.pitchCfg)||{};return {w:+c.w>0?+c.w:100,h:+c.h>0?+c.h:100,theme:c.theme==="white"?"white":"green",marker:c.marker==="x"?"x":"circle",size:+c.size>0?+c.size:1,mcolor:/^#[0-9a-f]{6}$/i.test(c.mcolor||"")?c.mcolor:"#9b65c5"}};
+function markSVG(pos,cfg){if(!pos)return "";const x=pos.x/posW(pos)*105,y=pos.y/posH(pos)*68,r=1.8*cfg.size,f=n=>n.toFixed(2);
+  return cfg.marker==="x"?`<path class="markx" d="M${f(x-r)} ${f(y-r)}L${f(x+r)} ${f(y+r)}M${f(x+r)} ${f(y-r)}L${f(x-r)} ${f(y+r)}" style="stroke:${cfg.mcolor};stroke-width:${f(.9*cfg.size)};stroke-linecap:round;fill:none"/>`
+    :`<circle class="mark" cx="${f(x)}" cy="${f(y)}" r="${f(r)}" style="fill:${cfg.mcolor};stroke:#fff;stroke-width:${f(.5*cfg.size)}"/>`}
 const posW=p=>+p.w>0?+p.w:100,posH=p=>+p.h>0?+p.h:100;
 function pitchSVG(pos,cfg){cfg=cfg||pcfg(cur);
   return `<svg class="pitch ${cfg.theme}" id="pitch" viewBox="-2 -2 109 72" aria-label="Campograma" role="img">
@@ -775,7 +792,7 @@ function pitchSVG(pos,cfg){cfg=cfg||pcfg(cur);
     <path d="M16.5 26.7 A9.15 9.15 0 0 1 16.5 41.3"/><path d="M88.5 26.7 A9.15 9.15 0 0 0 88.5 41.3"/>
     <circle class="l" cx="11" cy="34" r=".6"/><circle class="l" cx="94" cy="34" r=".6"/><circle class="l" cx="52.5" cy="34" r=".6"/>
     <path class="arrow" d="M44 63 h12 v-2.2 l5 3.4 -5 3.4 v-2.2 h-12z"/>
-    ${pos?`<circle class="mark" cx="${(pos.x/posW(pos)*105).toFixed(2)}" cy="${(pos.y/posH(pos)*68).toFixed(2)}" r="1.8"/>`:""}
+    <g class="markg">${markSVG(pos,cfg)}</g>
   </svg>`}
 function wirePitch(root,tag,onSet,cfg){cfg=cfg||pcfg(cur);
   const svg=$("#pitch",root);
@@ -784,8 +801,7 @@ function wirePitch(root,tag,onSet,cfg){cfg=cfg||pcfg(cur);
     const vx=(e.clientX-r.left)/r.width*109-2,vy=(e.clientY-r.top)/r.height*72-2;
     const x=Math.max(0,Math.min(100,vx/105*100)),y=Math.max(0,Math.min(100,vy/68*100));
     tag.pos={x:Math.round(x*cfg.w/10)/10,y:Math.round(y*cfg.h/10)/10,w:cfg.w,h:cfg.h};
-    let m=svg.querySelector(".mark");if(!m){m=document.createElementNS("http://www.w3.org/2000/svg","circle");m.setAttribute("class","mark");m.setAttribute("r","1.8");svg.appendChild(m)}
-    m.setAttribute("cx",(tag.pos.x/posW(tag.pos)*105).toFixed(2));m.setAttribute("cy",(tag.pos.y/posH(tag.pos)*68).toFixed(2));onSet&&onSet()};
+    svg.querySelector(".markg").innerHTML=markSVG(tag.pos,cfg);onSet&&onSet()};
   svg.onpointerdown=e=>{e.preventDefault();set(e)};
 }
 function openTagPitch(tagId){
@@ -1066,7 +1082,7 @@ function addTag(tag){
 }
 /* Every tag can be labelled with one key behaviour and one concept, whatever button fired it. The lists come from the analysis buttons; a stored value that no longer exists stays selectable. */
 function labelSel(a,t,field,group){
-  const names=a.buttons.filter(b=>grp(b)===group).map(b=>b.name);const v=t[field]||"";if(v&&!names.includes(v))names.push(v);
+  const names=a.buttons.filter(b=>b.kind!=="descritor"&&grp(b)===group).map(b=>b.name);const v=t[field]||"";if(v&&!names.includes(v))names.push(v);
   return `<select data-lbl="${field}" data-id="${t.id}" aria-label="${esc(group)}" style="padding:4px 6px;font-size:12px;width:auto;max-width:170px"><option value="">—</option>${names.map(n=>`<option value="${esc(n)}" ${v===n?"selected":""}>${esc(n)}</option>`).join("")}</select>`;
 }
 function renderLog(){
@@ -1074,7 +1090,7 @@ function renderLog(){
   const color=id=>(btnOf(a,id)||{}).color||"#888";
   const rows=a.tags.slice().reverse();
   $("#logscroll").innerHTML=rows.length?`<table><thead><tr><th>Tag</th><th>Início</th><th>Fim</th><th>Atleta</th><th>${a.type==="jogo"?"Posição / Qualificação":"Qualificação"}</th>${W(a).single?"":`<th>${W(a).N}</th>`}<th>Comportamento-chave</th><th>Conceito</th><th>Nota</th><th></th></tr></thead><tbody>${rows.map(t=>`
-    <tr><td><span class="sw ${t.sync?"sync":""}" style="background:${esc(color(t.btn))}"></span>${esc(t.code)}</td>
+    <tr><td><span class="sw ${t.sync?"sync":""}" style="background:${esc(color(t.btn))}"></span>${esc(t.code)}${(t.desc||[]).length?`<div>${t.desc.map(d=>`<span class="dpill">${esc(d)}</span>`).join("")}</div>`:""}</td>
     <td class="num">${fmtS(t.start)}</td><td class="num">${fmtS(t.end)}</td>
     ${t.sync?`<td class="muted" colspan="2">apito inicial</td>`:`<td><div class="athcell">${t.scope&&!(t.athletes||[]).length?`<span class="pill">${esc(t.scope)}</span>`:""}${tagAthLabels(t).map(l=>`<span class="tagath">${esc(l)}</span>`).join("")}<button class="btn sm ghost" type="button" data-tath="${t.id}" aria-label="Escolher atletas">${(t.athletes||[]).length?"✎":"+ atleta"}</button></div></td>
     ${a.type==="jogo"&&grp(btnOf(a,t.btn))!==KEY_GROUP?`<td><button class="btn sm ghost" type="button" data-tpos="${t.id}" aria-label="Posição no campo">${t.pos?`<span class="num">${t.pos.x} · ${t.pos.y}</span>`:"+ posição"}</button></td>`:`<td><select data-rate="${t.id}" aria-label="Avaliação" style="padding:4px 6px;font-size:12px;width:auto"><option value="">—</option><option value="Reforço" ${t.rating==="Reforço"||t.rating==="Ação positiva"?"selected":""}>Reforço</option><option value="Ajuste" ${t.rating==="Ajuste"?"selected":""}>Ajuste</option></select></td>`}`}
@@ -1108,17 +1124,18 @@ function openButtonEditor(opts){
   const draw=()=>{
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="be-h">
       <h2 id="be-h">${draft?"Criar protocolo":"Botões de tag"}</h2>
-      <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. Tecla é opcional (uma letra ou número). “Atleta?” define se o botão pergunta atleta e avaliação depois do clique.</p>
-      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Grupo</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Tecla</th><th>Atleta?</th><th></th></tr></thead><tbody>
+      <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. Tecla é opcional (uma letra ou número). “Atleta?” define se o botão pergunta atleta e avaliação depois do clique. Botão de <b>categoria</b> cria a tag; <b>descritor</b> funciona como rótulo e só vale depois de uma categoria (entra na última tag marcada).</p>
+      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Tecla</th><th>Atleta?</th><th></th></tr></thead><tbody>
       ${rows.map((b,i)=>`<tr>
         <td><input type="color" id="be-c-${b.id}" data-i="${i}" data-f="color" value="${esc(b.color)}"></td>
         <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
-        <td><select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select></td>
-        <td><select id="be-m-${b.id}" data-i="${i}" data-f="mode"><option value="instant" ${b.mode==="instant"?"selected":""}>Instantâneo</option><option value="toggle" ${b.mode==="toggle"?"selected":""}>Liga/desliga</option></select></td>
-        <td><input class="n" type="number" min="0" id="be-l-${b.id}" data-i="${i}" data-f="lead" value="${b.lead}" ${b.mode==="toggle"?"disabled":""}></td>
-        <td><input class="n" type="number" min="0" id="be-g-${b.id}" data-i="${i}" data-f="lag" value="${b.lag}" ${b.mode==="toggle"?"disabled":""}></td>
+        <td><select id="be-k2-${b.id}" data-i="${i}" data-f="kind" aria-label="Função"><option value="categoria" ${b.kind==="descritor"?"":"selected"}>Categoria</option><option value="descritor" ${b.kind==="descritor"?"selected":""}>Descritor</option></select></td>
+        <td><select id="be-gr-${b.id}" data-i="${i}" data-f="group" ${b.kind==="descritor"?"disabled":""}>${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select></td>
+        <td><select id="be-m-${b.id}" data-i="${i}" data-f="mode" ${b.kind==="descritor"?"disabled":""}><option value="instant" ${b.mode==="instant"?"selected":""}>Instantâneo</option><option value="toggle" ${b.mode==="toggle"?"selected":""}>Liga/desliga</option></select></td>
+        <td><input class="n" type="number" min="0" id="be-l-${b.id}" data-i="${i}" data-f="lead" value="${b.lead}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
+        <td><input class="n" type="number" min="0" id="be-g-${b.id}" data-i="${i}" data-f="lag" value="${b.lag}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
         <td><input class="key" type="text" maxlength="1" id="be-k-${b.id}" data-i="${i}" data-f="key" value="${esc(b.key||"")}"></td>
-        <td style="text-align:center"><input type="checkbox" id="be-a-${b.id}" data-i="${i}" data-f="ask" ${b.ask===false?"":"checked"} aria-label="Perguntar atleta e avaliação"></td>
+        <td style="text-align:center"><input type="checkbox" id="be-a-${b.id}" data-i="${i}" data-f="ask" ${b.ask===false?"":"checked"} ${b.kind==="descritor"?"disabled":""} aria-label="Perguntar atleta e avaliação"></td>
         <td style="white-space:nowrap"><button class="btn sm ghost" type="button" data-up="${i}" aria-label="Subir">↑</button><button class="btn sm ghost danger" type="button" data-x="${i}" aria-label="Remover">✕</button></td>
       </tr>`).join("")}
       </tbody></table></div>
@@ -1134,7 +1151,7 @@ function openButtonEditor(opts){
         <div class="proto-row">
           <input type="text" id="pr-name" placeholder="Nome do novo protocolo (ex.: Posse · Sub-17)" style="flex:1 1 220px" value="${esc((protocols().find(p=>p.id===a.protocol)||{}).name||"")}">
           <label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="pr-pitch" ${usePitch(a)?"checked":""}> Descritor gráfico (campograma X/Y)</label>
-          <span class="pcfg" id="pr-pcfg" ${usePitch(a)?"":"hidden"}><label>Largura X <input type="number" min="1" step="any" id="pr-pw" value="${pcfg(a).w}"></label><label>Altura Y <input type="number" min="1" step="any" id="pr-ph" value="${pcfg(a).h}"></label><label>Campo <select id="pr-pth"><option value="green" ${pcfg(a).theme==="green"?"selected":""}>Verde · linhas brancas</option><option value="white" ${pcfg(a).theme==="white"?"selected":""}>Branco · linhas cinzas</option></select></label><button class="btn sm ghost" type="button" id="pr-pprev">👁 Ver campo</button></span>
+          <span class="pcfg" id="pr-pcfg" ${usePitch(a)?"":"hidden"}><label>Largura X <input type="number" min="1" step="any" id="pr-pw" value="${pcfg(a).w}"></label><label>Altura Y <input type="number" min="1" step="any" id="pr-ph" value="${pcfg(a).h}"></label><label>Campo <select id="pr-pth"><option value="green" ${pcfg(a).theme==="green"?"selected":""}>Verde · linhas brancas</option><option value="white" ${pcfg(a).theme==="white"?"selected":""}>Branco · linhas cinzas</option></select></label><label>Marcador <select id="pr-pmk"><option value="circle" ${pcfg(a).marker==="circle"?"selected":""}>Circunferência</option><option value="x" ${pcfg(a).marker==="x"?"selected":""}>X</option></select></label><label>Tamanho <input type="number" min="0.5" max="4" step="0.25" id="pr-psz" value="${pcfg(a).size}"></label><label>Cor <input type="color" id="pr-pmc" value="${pcfg(a).mcolor}" style="width:42px;height:32px;padding:2px"></label><button class="btn sm ghost" type="button" id="pr-pprev">👁 Ver campo</button></span>
           <select id="pr-type" aria-label="Tipo do protocolo" style="width:auto"><option value="jogo" ${((protocols().find(p=>p.id===a.protocol)||{}).type||a.type)==="jogo"?"selected":""}>Jogo</option><option value="treino" ${((protocols().find(p=>p.id===a.protocol)||{}).type||a.type)==="treino"?"selected":""}>Treino</option></select>
           <button class="btn sm" type="button" id="pr-save">Salvar estes botões como protocolo</button>
         </div>
@@ -1146,15 +1163,15 @@ function openButtonEditor(opts){
         <button class="btn primary" type="button" id="be-save">Salvar botões</button>
       </div>`}</div></div>`;
     $$("#ovroot [data-f]").forEach(el=>el.oninput=el.onchange=()=>{const r=rows[+el.dataset.i],f=el.dataset.f;
-      r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode")draw()});
+      r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode"||f==="kind")draw()});
     $$("#ovroot [data-x]").forEach(el=>el.onclick=()=>{rows.splice(+el.dataset.x,1);draw()});
     $$("#ovroot [data-up]").forEach(el=>el.onclick=()=>{const i=+el.dataset.up;if(i>0){[rows[i-1],rows[i]]=[rows[i],rows[i-1]];draw()}});
     $("#be-add").onclick=()=>{rows.push(B("Novo tag","#a5b4fc","",undefined,5,5,"Conceitos"));draw();const ins=$$("#ovroot [data-f=name]");ins[ins.length-1].focus()};
     $("#be-restore").onclick=()=>{rows=(store.config.defaults[a.type]||defaultButtons(a.type)).map(b=>Object.assign({},b,{id:newId()}));draw();toast("Botões padrão carregados. Clique em Salvar.")};
     const selProto=()=>protocols().find(p=>p.id===$("#pr-sel").value);
-    const readCfg=()=>({w:Math.max(1,parseFloat($("#pr-pw").value)||100),h:Math.max(1,parseFloat($("#pr-ph").value)||100),theme:$("#pr-pth").value});
+    const readCfg=()=>({w:Math.max(1,parseFloat($("#pr-pw").value)||100),h:Math.max(1,parseFloat($("#pr-ph").value)||100),theme:$("#pr-pth").value,marker:$("#pr-pmk").value,size:Math.min(4,Math.max(.5,parseFloat($("#pr-psz").value)||1)),mcolor:$("#pr-pmc").value});
     $("#pr-pitch").onchange=e=>{a.pitch=e.target.checked;$("#pr-pcfg").hidden=!a.pitch;saveA()};
-    ["#pr-pw","#pr-ph","#pr-pth"].forEach(id=>$(id).onchange=()=>{a.pitchCfg=readCfg();saveA()});
+    ["#pr-pw","#pr-ph","#pr-pth","#pr-pmk","#pr-psz","#pr-pmc"].forEach(id=>$(id).onchange=()=>{a.pitchCfg=readCfg();saveA()});
     $("#pr-pprev").onclick=()=>{const c=readCfg(),t={};$("#ovroot2").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Prévia do campograma" style="width:min(640px,100%)"><h2 style="font-size:20px">Prévia do campograma</h2><div class="pitchwrap">${pitchSVG(null,c)}<div class="coord" id="pv-coord">Toque no campo: X de 0 a ${c.w}, Y de 0 a ${c.h}</div></div><div class="foot"><button class="btn primary" type="button" id="pv-ok">Fechar</button></div></div></div>`;
       wirePitch($("#ovroot2"),t,()=>{$("#pv-coord").textContent=`x ${t.pos.x} · y ${t.pos.y}`},c);$("#pv-ok").onclick=()=>{$("#ovroot2").innerHTML=""}};
     $("#pr-save").onclick=()=>{const name=$("#pr-name").value.trim();if(!name)return toast("Dê um nome ao protocolo");const btns=cleanBtns(rows);if(!btns.length)return toast("Nenhum botão para salvar");
@@ -1192,7 +1209,7 @@ function protoSelHTML(a){const list=protocols().filter(p=>(p.type||a.type)===a.t
 function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
 function refreshProtoSel(a){const el=$("#protosel");if(!el)return;el.outerHTML=protoSelHTML(a);wireProtoSel(a)}
 function protocols(){if(!store.config.protocols){try{store.config.protocols=[]}catch(e){store.config=Object.assign({},store.config,{protocols:[]})}}return store.config.protocols}
-const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false}));
+const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria"}));
 /* apply a button set to an analysis, keeping ids of same-named buttons so old tags keep their colors */
 const usePitch=a=>a&&a.pitch!==undefined?!!a.pitch:!!(a&&a.type==="jogo");
 function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS.includes(b.group));a.buttons=btns.map(b=>{const ex=old.find(o=>o.name===b.name);return Object.assign({},b,{id:ex?ex.id:newId()})});
@@ -1214,7 +1231,7 @@ function buildXML(a,opts){
   const off=+a.videoOffset||0,gNow=clockMs(a.clock.general)/1000;
   const tags=a.tags.slice();
   for(const [bid,o] of Object.entries(a.openToggles||{})){const b=a.buttons.find(x=>x.id===bid);if(b)tags.push({btn:bid,code:b.name,start:o.start,end:Math.max(gNow,o.start+0.1),session:o.session,st:o.st,athletes:o.athletes||[],note:"(aberto ao exportar)"})}
-  const inst=tags.map(t=>({start:t.start,end:t.end,code:t.code,text:freeText(t,t.code,opts),labels:tagAthLabels(t)}));
+  const inst=tags.map(t=>({start:t.start,end:t.end,code:t.code,text:freeText(t,t.code,opts),labels:[...tagAthLabels(t).map(l=>["Atleta",l]),...(t.desc||[]).map(d=>["Descritor",d])]}));
   if(opts.sessions&&!W(a).single)a.sessions.forEach(s=>inst.push({start:s.start,end:s.end==null?gNow:s.end,code:W(a).N,text:s.name}));
   inst.sort((x,y)=>x.start-y.start);
   const I="    ",lines=["<file>",I+"<ALL_INSTANCES>"];
@@ -1225,7 +1242,7 @@ function buildXML(a,opts){
     lines.push(I+I+I+"<end>"+r2(Math.max(0,it.end+off))+"</end>");
     lines.push(I+I+I+"<code>"+xe(it.code)+"</code>");
     if(it.text)lines.push(I+I+I+"<free_text>"+xe(it.text)+"</free_text>");
-    (it.labels||[]).forEach(l=>{lines.push(I+I+I+"<label>");lines.push(I+I+I+I+"<group>Atleta</group>");lines.push(I+I+I+I+"<text>"+xe(l)+"</text>");lines.push(I+I+I+"</label>")});
+    (it.labels||[]).forEach(([g,l])=>{lines.push(I+I+I+"<label>");lines.push(I+I+I+I+"<group>"+xe(g)+"</group>");lines.push(I+I+I+I+"<text>"+xe(l)+"</text>");lines.push(I+I+I+"</label>")});
     lines.push(I+I+"</instance>");
   });
   lines.push(I+"</ALL_INSTANCES>");
