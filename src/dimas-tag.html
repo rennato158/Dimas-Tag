@@ -817,10 +817,10 @@ function quickPick(b,tag,opts){
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Descritores" style="width:min(560px,100%)">
       ${head("descritores")}
       <div class="dsel">${actD.map(d=>`<button type="button" class="dchip" data-d="${esc(d.name)}" aria-pressed="${tag.desc.includes(d.name)}" style="--dc:${esc(d.color)}">${esc(d.name)}</button>`).join("")}</div>
-      <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem descritor</button><button class="btn primary" type="button" id="qd-ok">Concluir</button></div></div></div>`;
-    $$("[data-d]",box).forEach(el=>el.onclick=()=>{const n=el.dataset.d,i=tag.desc.indexOf(n);if(i>=0)tag.desc.splice(i,1);else tag.desc.push(n);el.setAttribute("aria-pressed",i<0)});
-    $("#qp-skip").onclick=()=>{tag.desc=[];done()};$("#qd-ok").onclick=done;
-    box.onkeydown=e=>{if(e.key==="Enter")done();else if(e.key==="Escape"){tag.desc=[];done()}else return;e.preventDefault()};
+      <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem descritor</button></div></div></div>`;
+    $$("[data-d]",box).forEach(el=>el.onclick=()=>{tag.desc=[el.dataset.d];done()});
+    $("#qp-skip").onclick=()=>{tag.desc=[];done()};
+    box.onkeydown=e=>{if(e.key==="Escape"){tag.desc=[];done()}else return;e.preventDefault()};
     box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
   };
   const done=()=>{if(actD.length&&!dAsked){stepDesc();return}if(tag.desc&&!tag.desc.length)delete tag.desc;box.innerHTML="";addTag(tag);toast(tag.code+(tag.scope?" · "+tag.scope:"")+(tag.rating?" · "+tag.rating:"")+(tag.pos?` · ${tag.pos.x},${tag.pos.y}`:"")+" · "+fmtS(tag.t))};
