@@ -496,7 +496,7 @@ function renderHome(){
             <button type="button" data-type="jogo" aria-pressed="${newType==="jogo"}">Jogo</button>
             <button type="button" data-type="treino" aria-pressed="${newType==="treino"}">Treino</button>
           </div>
-          <label class="f"><span>${newType==="jogo"?"Nome da análise":"Nome da sessão"}</span><input type="text" id="nf-title" placeholder="${newType==="jogo"?"Ex.: Sub-17 x Atlético":"Ex.: Sessão tática · MD-3"}" required></label>
+          <label class="f"><span>${newType==="jogo"?"Nome da análise":"Tarefa"}</span><input type="text" id="nf-title" placeholder="${newType==="jogo"?"Ex.: Sub-17 x Atlético":"Ex.: Jogo de posição 7x7"}" required></label>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <label class="f"><span>Data</span><input type="date" id="nf-date" value="${new Date().toISOString().slice(0,10)}"></label>
             <label class="f"><span>Categoria</span><input type="text" id="nf-cat" placeholder="Sub-17"></label>
