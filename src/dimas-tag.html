@@ -266,7 +266,7 @@ function defaultButtons(type){
 }
 const SESSION_PRESETS={jogo:["1º tempo","2º tempo","Prorrogação 1º","Prorrogação 2º","Pênaltis"],treino:["1º bloco","2º bloco","3º bloco","4º bloco","5º bloco"]};
 const INFO_FIELDS={
-  jogo:[["competicao","Competição","text"],["rodada","Rodada / fase","text"],["data","Data","date"],["horario","Horário","time"],["local","Local / estádio","text"],["categoria","Categoria","text"],["mandante","Mandante","text"],["visitante","Visitante","text"],["golsMandante","Gols mandante","number"],["golsVisitante","Gols visitante","number"],["sistema","Sistema tático","text"],["analista","Analista","text"],["obs","Observações","textarea"]],
+  jogo:[["competicao","Competição","text"],["rodada","Rodada","text"],["data","Data","date"],["horario","Horário","time"],["local","Local / estádio","text"],["categoria","Categoria","text"],["mandante","Mandante","text"],["visitante","Visitante","text"],["golsMandante","Gols mandante","number"],["golsVisitante","Gols visitante","number"],["sistema","Sistema tático","text"],["analista","Analista","text"],["obs","Observações","textarea"]],
   treino:[["data","Data","date"],["horario","Horário","time"],["local","Local","text"],["categoria","Categoria","text"],["microciclo","Microciclo / dia","text"],["objetivo","Objetivo da sessão","text"],["duracao","Duração prevista (min)","number"],["treinador","Treinador / comissão","text"],["atletas","Atletas presentes","number"],["analista","Analista","text"],["obs","Observações","textarea"]]
 };
 
@@ -482,6 +482,10 @@ function renderHome(){
             <label class="f"><span>Data</span><input type="date" id="nf-date" value="${new Date().toISOString().slice(0,10)}"></label>
             <label class="f"><span>Categoria</span><input type="text" id="nf-cat" placeholder="Sub-17"></label>
           </div>
+          ${newType==="jogo"?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label class="f"><span>Competição</span><input type="text" id="nf-comp" placeholder="Ex.: Brasileiro Sub-17"></label>
+            <label class="f"><span>Rodada</span><input type="text" id="nf-rod" placeholder="Ex.: 5ª rodada"></label>
+          </div>`:""}
           ${protocols().length?`<label class="f"><span>Protocolo de botões</span><select id="nf-proto"><option value="">Padrão de ${newType}</option>${protocols().map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.buttons.length} botões</option>`).join("")}</select></label>`:""}
           <button class="btn primary" type="submit">Criar análise</button>
           
@@ -495,7 +499,7 @@ function renderHome(){
             const d=a.info&&a.info.data?new Date(a.info.data+"T12:00").toLocaleDateString("pt-BR"):new Date(a.createdAt).toLocaleDateString("pt-BR");
             return `<div class="item" data-open="${a.id}" tabindex="0" role="button">
               <span class="typebadge ${a.type}">${a.type}</span>
-              <div style="min-width:0"><h3>${esc(a.title)}</h3><div class="meta">${d}${a.info&&a.info.categoria?" · "+esc(a.info.categoria):""} · ${a.tags.length} tags · <span class="num" title="Tempo total da tarefa">⏱ ${fmt(taskMs(a))}</span> ${live?'<span class="pill live">ao vivo</span>':""} ${a.example?'<span class="pill">exemplo</span>':""}${a.protocol&&protocols().find(p=>p.id===a.protocol)?` <span class="pill">${esc(protocols().find(p=>p.id===a.protocol).name)}</span>`:""}</div></div>
+              <div style="min-width:0"><h3>${esc(a.title)}</h3><div class="meta">${d}${a.info&&a.info.categoria?" · "+esc(a.info.categoria):""}${a.type==="jogo"&&a.info&&a.info.competicao?" · "+esc(a.info.competicao):""}${a.type==="jogo"&&a.info&&a.info.rodada?" · "+esc(a.info.rodada):""} · ${a.tags.length} tags · <span class="num" title="Tempo total da tarefa">⏱ ${fmt(taskMs(a))}</span> ${live?'<span class="pill live">ao vivo</span>':""} ${a.example?'<span class="pill">exemplo</span>':""}${a.protocol&&protocols().find(p=>p.id===a.protocol)?` <span class="pill">${esc(protocols().find(p=>p.id===a.protocol).name)}</span>`:""}</div></div>
               <span class="confirm" data-delwrap="${a.id}"><button class="btn sm ghost danger" data-del="${a.id}" type="button">Apagar</button></span>
             </div>`}).join(""):`<div class="empty">Nenhuma análise ainda. Crie a primeira ao lado.</div>`}
         </div>
@@ -505,7 +509,7 @@ function renderHome(){
   $$(".seg button").forEach(b=>b.onclick=()=>{newType=b.dataset.type;const t=$("#nf-title").value,c=$("#nf-cat").value,d=$("#nf-date").value;renderHome();$("#nf-title").value=t;$("#nf-cat").value=c;$("#nf-date").value=d});
   $("#roster").onclick=()=>openRoster(renderHome);wireTheme();if($("#syncacct")){$("#syncacct").onclick=openSync;renderSyncState()}
   $("#newform").onsubmit=e=>{e.preventDefault();
-    const a=newAnalysis(newType,$("#nf-title").value.trim(),{data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()});
+    const a=newAnalysis(newType,$("#nf-title").value.trim(),Object.assign({data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()},newType==="jogo"?{competicao:($("#nf-comp")||{value:""}).value.trim(),rodada:($("#nf-rod")||{value:""}).value.trim()}:{}));
     const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id}}
     store.save(a);openAnalysis(a.id)};
   $$("[data-open]").forEach(el=>{
