@@ -1115,69 +1115,56 @@ function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS
 function closeOv(){$("#ovroot").innerHTML=""}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if($("#ovroot2").children.length){if($("#cr-c"))$("#ovroot2").innerHTML=""}else if($("#ovroot").children.length)closeOv();else{const d=$("#tagsdrawer");if(d&&!d.hidden){d.hidden=true;$("#drawerbg").hidden=true;$("#opentags").setAttribute("aria-expanded","false")}}}});
 
-/* ---------------- XML export (Sportscode / Hudl instance format) ---------------- */
-function hexTo16(h){h=(h||"#888888").replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255].map(v=>v*257)}
+/* ---------------- XML export (Nacsport instance format) ---------------- */
+function hexTo16(h){h=(h||"#888888").replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255].map(v=>v*256)}
 const xe=s=>String(s??"").replace(/[<>&'"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[c]));
-const r2=n=>(Math.round(n*100)/100).toFixed(2);
+const r2=n=>String(+(Math.round(n*10000)/10000).toFixed(4));
+function freeText(t,code,opts){const parts=[];const n=String(t.note||"").trim();if(n)parts.push(n);
+  if(opts.details){const ath=tagAthLabels(t);if(ath.length)parts.push(ath.join(", "));
+    [t.scope,t.rating,t.kb!==code?t.kb:"",t.cp!==code?t.cp:""].forEach(v=>{if(v)parts.push(v)});
+    if(t.pos)parts.push("X "+t.pos.x+" / Y "+t.pos.y)}
+  return parts.join(" · ")}
 function buildXML(a,opts){
   const off=+a.videoOffset||0,gNow=clockMs(a.clock.general)/1000;
   const tags=a.tags.slice();
   for(const [bid,o] of Object.entries(a.openToggles||{})){const b=a.buttons.find(x=>x.id===bid);if(b)tags.push({btn:bid,code:b.name,start:o.start,end:Math.max(gNow,o.start+0.1),session:o.session,st:o.st,athletes:o.athletes||[],note:"(aberto ao exportar)"})}
-  const inst=[];
-  tags.sort((x,y)=>x.start-y.start).forEach(t=>inst.push({start:t.start,end:t.end,code:t.code,note:t.note||"",labels:[...(W(a).single?[]:[[W(a).N,t.session]]),["Grupo",t.sync?"":grp(btnOf(a,t.btn))],...tagAthLabels(t).map(l=>["Atleta",l]),["Tipo",t.scope],["Comportamento-chave",t.kb],["Conceito",t.cp],["Avaliação",t.rating],...(t.pos?[["X",String(t.pos.x)],["Y",String(t.pos.y)]]:[]),["Nota",t.note]].filter(l=>l[1])}));
-  if(opts.sessions&&!W(a).single)a.sessions.forEach(s=>inst.push({start:s.start,end:s.end==null?gNow:s.end,code:W(a).N,labels:[[W(a).N,s.name]]}));
+  const inst=tags.map(t=>({start:t.start,end:t.end,code:t.code,text:freeText(t,t.code,opts)}));
+  if(opts.sessions&&!W(a).single)a.sessions.forEach(s=>inst.push({start:s.start,end:s.end==null?gNow:s.end,code:W(a).N,text:s.name}));
   inst.sort((x,y)=>x.start-y.start);
-  const info=INFO_FIELDS[a.type].map(([k,l])=>[l,a.info[k]]).filter(x=>x[1]!==undefined&&x[1]!=="");
-  const lines=['<?xml version="1.0" encoding="utf-8"?>'];
-  lines.push("<!-- Gerado por DIMAS Tag em "+new Date().toLocaleString("pt-BR")+" -->");
-  lines.push("<!-- "+xe(a.type==="jogo"?"Jogo":"Treino")+": "+xe(a.title).replace(/--/g,"- -")+" -->");
-  lines.push("<file>");
-  lines.push("  <SESSION_INFO>");
-  lines.push("    <start_time>"+xe(new Date(a.createdAt).toISOString())+"</start_time>");
-  lines.push("  </SESSION_INFO>");
-  if(opts.meta){
-    lines.push("  <ANALYSIS_INFO>");
-    lines.push("    <type>"+xe(a.type)+"</type>");
-    lines.push("    <title>"+xe(a.title)+"</title>");
-    info.forEach(([l,v])=>lines.push('    <field name="'+xe(l)+'">'+xe(v)+"</field>"));
-    const used=[...new Set(a.tags.flatMap(t=>tagAthLabels(t)))];
-    if(used.length){lines.push("    <athletes>");used.forEach(l=>{const p=roster().find(x=>x.name===l);lines.push("      <athlete"+(p&&p.pos?' role="'+xe(p.pos)+'"':"")+(p&&p.cat?' category="'+xe(p.cat)+'"':"")+">"+xe(l)+"</athlete>")});lines.push("    </athletes>")}
-    lines.push("    <total_time>"+r2(gNow)+"</total_time>");
-    lines.push("    <video_offset>"+r2(off)+"</video_offset>");
-    lines.push("  </ANALYSIS_INFO>");
-  }
-  lines.push("  <ALL_INSTANCES>");
+  const I="    ",lines=["<file>",I+"<ALL_INSTANCES>"];
   inst.forEach((it,i)=>{
-    lines.push("    <instance>");
-    lines.push("      <ID>"+(i+1)+"</ID>");
-    lines.push("      <start>"+r2(Math.max(0,it.start+off))+"</start>");
-    lines.push("      <end>"+r2(Math.max(0,it.end+off))+"</end>");
-    lines.push("      <code>"+xe(it.code)+"</code>");
-    if(it.note&&String(it.note).trim())lines.push("      <free_text>"+xe(String(it.note).trim())+"</free_text>");
-    it.labels.forEach(([g,t])=>{lines.push("      <label>");lines.push("        <group>"+xe(g)+"</group>");lines.push("        <text>"+xe(t)+"</text>");lines.push("      </label>")});
-    lines.push("    </instance>");
+    lines.push(I+I+"<instance>");
+    lines.push(I+I+I+"<ID>"+(i+1)+"</ID>");
+    lines.push(I+I+I+"<start>"+r2(Math.max(0,it.start+off))+"</start>");
+    lines.push(I+I+I+"<end>"+r2(Math.max(0,it.end+off))+"</end>");
+    lines.push(I+I+I+"<code>"+xe(it.code)+"</code>");
+    if(it.text)lines.push(I+I+I+"<free_text>"+xe(it.text)+"</free_text>");
+    lines.push(I+I+"</instance>");
   });
-  lines.push("  </ALL_INSTANCES>");
-  lines.push("  <ROWS>");
-  const codes=[...new Set(inst.map(i=>i.code))];
-  codes.forEach(c=>{const b=a.buttons.find(x=>x.name===c)||(c===ACTION_BTN.name?ACTION_BTN:null);const [R,G,Bc]=hexTo16(b?b.color:(c==="Sincronia"?"#000000":"#d4d4d8"));
-    lines.push("    <row>");lines.push("      <code>"+xe(c)+"</code>");lines.push("      <R>"+R+"</R>");lines.push("      <G>"+G+"</G>");lines.push("      <B>"+Bc+"</B>");lines.push("    </row>")});
-  lines.push("  </ROWS>");
+  lines.push(I+"</ALL_INSTANCES>");
+  lines.push(I+"<ROWS>");
+  /* row order follows the pad: Ação, Comportamentos-chave, Conceitos, then Sincronia / blocos */
+  const order=[ACTION_BTN.name,...a.buttons.filter(b=>grp(b)===KEY_GROUP).map(b=>b.name),...a.buttons.filter(b=>grp(b)!==KEY_GROUP).map(b=>b.name)];
+  const rank=c=>{const k=order.indexOf(c);return k<0?order.length+(c==="Sincronia"?0:1):k};
+  const codes=[...new Set(inst.map(i=>i.code))].sort((x,y)=>rank(x)-rank(y));
+  codes.forEach((c,k)=>{const b=a.buttons.find(x=>x.name===c)||(c===ACTION_BTN.name?ACTION_BTN:null);const [R,G,Bc]=hexTo16(b?b.color:(c==="Sincronia"?"#000000":"#d4d4d8"));
+    lines.push(I+I+"<row>");lines.push(I+I+I+"<code>"+xe(c)+"</code>");lines.push(I+I+I+"<R>"+R+"</R>");lines.push(I+I+I+"<G>"+G+"</G>");lines.push(I+I+I+"<B>"+Bc+"</B>");lines.push(I+I+I+"<sort_order>"+(k+1)+"</sort_order>");lines.push(I+I+"</row>")});
+  lines.push(I+"</ROWS>");
   lines.push("</file>");
   return lines.join("\n");
 }
 function safeName(s){return (s||"analise").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"_").slice(0,60)||"analise"}
 
 function openExport(){
-  const a=cur;let opts={meta:true,sessions:true};
+  const a=cur;let opts={details:true,sessions:true};
   const draw=()=>{
     const xml=buildXML(a,opts);
     const nOpen=Object.keys(a.openToggles||{}).length;
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ex-h">
       <h2 id="ex-h">Gerar XML</h2>
-      <p class="muted" style="margin:0">Formato de instâncias do Sportscode / Hudl (start, end, code e labels), com tempos em segundos contados a partir do ${W(a).single?"início da sessão":"início do primeiro período"}. ${a.tags.length} tags${nOpen?`, mais ${nOpen} botão liga/desliga ainda aberto (entra fechado no tempo atual)`:""}.</p>
+      <p class="muted" style="margin:0">Formato Nacsport (ID, start, end, code e free_text com a nota), com tempos em segundos contados a partir do ${W(a).single?"início da sessão":"início do primeiro período"}. ${a.tags.length} tags${nOpen?`, mais ${nOpen} botão liga/desliga ainda aberto (entra fechado no tempo atual)`:""}.</p>
       <div style="display:flex;flex-wrap:wrap;gap:16px">
-        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ex-meta" ${opts.meta?"checked":""}> Incluir dados do ${a.type}</label>
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ex-meta" ${opts.details?"checked":""}> Atleta, qualificação e rótulos no texto livre</label>
         ${W(a).single?"":`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ex-ses" ${opts.sessions?"checked":""}> Incluir ${W(a).n}s como instâncias</label>`}
       </div>
       <pre class="xml" id="ex-pre">${esc(xml)}</pre>
@@ -1189,7 +1176,7 @@ function openExport(){
       </div>
       <p class="hint" style="margin:0" id="ex-note">O navegador do Claude só permite baixar alguns formatos, então o arquivo .xml vai dentro de um .zip. Se o download não estiver disponível, use “Copiar XML”.</p>
     </div></div>`;
-    $("#ex-meta").onchange=e=>{opts.meta=e.target.checked;draw()};
+    $("#ex-meta").onchange=e=>{opts.details=e.target.checked;draw()};
     const exs=$("#ex-ses");if(exs)exs.onchange=e=>{opts.sessions=e.target.checked;draw()};
     $("#ex-close").onclick=closeOv;
     const st=$("#ex-stop");if(st)st.onclick=()=>{const os=openSession();if(os){os.end=genSec();os.duration=sessSec()}
