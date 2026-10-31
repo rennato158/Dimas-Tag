@@ -156,9 +156,19 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tagbtn .name{overflow-wrap:break-word;hyphens:auto;font-size:18px}
 .tagbtn.desc{background:var(--surface);color:var(--fg);border:2px dashed var(--dc);min-height:56px;box-shadow:none}
 .tagbtn.desc .m{color:var(--muted)}
-.cpick{display:flex;gap:6px;align-items:center}
-.cpick .hex{width:84px;font-family:var(--f-mono);font-size:13px;text-transform:uppercase;padding:6px 8px}
-.cpick .hex.bad{border-color:var(--live);outline-color:var(--live)}
+.swatch{width:44px;height:34px;border-radius:8px;border:1px solid var(--line);cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--surface)}
+.cp-sv{position:relative;height:200px;border-radius:8px;cursor:crosshair;touch-action:none;background-image:linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,transparent)}
+.cp-dot{position:absolute;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1.5px #000;transform:translate(-50%,-50%);pointer-events:none}
+.cp-hue{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:7px;background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);outline:none;padding:0;border:0}
+.cp-hue::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid #333;cursor:pointer}
+.cp-hue::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #333}
+.cp-row{display:flex;gap:10px;align-items:center}
+.cp-prev{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);flex:none}
+.cp-f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);text-align:center}
+.cp-f input{text-align:center;padding:6px 4px;font-family:var(--f-mono);font-size:13px}
+.cp-f.hex input{width:96px;text-transform:uppercase}
+.cp-f.rgb input{width:58px}
+.cp-f input.bad{border-color:var(--live)}
 .dlink{margin-top:6px;font-size:12.5px}
 .dlink summary{cursor:pointer;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlink-list{display:flex;flex-direction:column;gap:4px;padding:6px 0;max-height:200px;overflow:auto}
@@ -1167,7 +1177,7 @@ function openButtonEditor(opts){
       <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. “Atleta?” define se o botão pergunta atleta e avaliação depois do clique. Botão de <b>categoria</b> cria a tag; <b>descritor</b> funciona como rótulo e só vale depois de uma categoria (em grupo no painel entra na última tag marcada; “ao ativar” aparece logo depois de tocar a categoria).</p>
       <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo / exibição</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Atleta?</th><th></th></tr></thead><tbody>
       ${rows.map((b,i)=>`<tr>
-        <td><div class="cpick"><input type="color" id="be-c-${b.id}" data-i="${i}" data-f="color" value="${esc(b.color)}"><input type="text" class="hex" id="be-h-${b.id}" data-hex="${i}" value="${esc(String(b.color||"").replace("#","").toUpperCase())}" maxlength="7" aria-label="Cor em HEX" autocomplete="off" spellcheck="false"></div></td>
+        <td><button type="button" class="swatch" data-cp="${i}" style="background:${esc(b.color)}" aria-label="Cor ${esc(String(b.color||"").toUpperCase())}"></button></td>
         <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
         <td><select id="be-k2-${b.id}" data-i="${i}" data-f="kind" aria-label="Função"><option value="categoria" ${b.kind==="descritor"?"":"selected"}>Categoria</option><option value="descritor" ${b.kind==="descritor"?"selected":""}>Descritor</option></select></td>
         <td>${b.kind==="descritor"?`<select id="be-ds-${b.id}" data-i="${i}" data-f="dshow" aria-label="Exibição do descritor"><option value="grupo" ${isAct(b)?"":"selected"}>Grupo no painel</option><option value="on:" ${isAct(b)?"selected":""}>Ao ativar categoria</option></select>${isAct(b)?`<details class="dlink"><summary>${(b.dcats||[]).length?esc(b.dcats.join(", ")):"Qualquer categoria"}</summary><div class="dlink-list">${rows.filter(x=>x.kind!=="descritor"&&String(x.name).trim()).map(x=>`<label><input type="checkbox" data-dl="${i}" value="${esc(x.name)}" ${(b.dcats||[]).includes(x.name)?"checked":""}> ${esc(x.name)}</label>`).join("")}<div class="muted" style="font-size:11.5px">Nenhuma marcada = qualquer categoria</div></div></details>`:""}`:`<select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select>`}</td>
@@ -1205,10 +1215,7 @@ function openButtonEditor(opts){
       r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode"||f==="kind"||f==="dshow")draw()});
     $$("#ovroot [data-x]").forEach(el=>el.onclick=()=>{rows.splice(+el.dataset.x,1);draw()});
 
-    $$("#ovroot [data-hex]").forEach(el=>el.oninput=()=>{const v=el.value.trim().replace(/^#/,"");const i=+el.dataset.hex;
-      const full=/^[0-9a-f]{3}$/i.test(v)?v.split("").map(c=>c+c).join(""):v;
-      if(/^[0-9a-f]{6}$/i.test(full)){rows[i].color="#"+full.toLowerCase();const c=el.parentNode.querySelector("input[type=color]");if(c)c.value=rows[i].color;el.classList.remove("bad")}else el.classList.add("bad")});
-    $$("#ovroot input[type=color][data-f=color]").forEach(el=>el.addEventListener("input",()=>{const h=el.parentNode.querySelector(".hex");if(h){h.value=el.value.replace("#","").toUpperCase();h.classList.remove("bad")}}));
+    $$("#ovroot [data-cp]").forEach(el=>el.onclick=()=>openColorPicker(rows[+el.dataset.cp].color,c=>{rows[+el.dataset.cp].color=c;el.style.background=c;el.setAttribute("aria-label","Cor "+c.toUpperCase())}));
     $$("#ovroot [data-dl]").forEach(el=>el.onchange=()=>{const r=rows[+el.dataset.dl];r.dcats=$$(`#ovroot [data-dl="${el.dataset.dl}"]:checked`).map(c=>c.value);const sm=el.closest("details").querySelector("summary");sm.textContent=r.dcats.length?r.dcats.join(", "):"Qualquer categoria"});
     $$("#ovroot [data-up]").forEach(el=>el.onclick=()=>{const i=+el.dataset.up;if(i>0){[rows[i-1],rows[i]]=[rows[i],rows[i-1]];draw()}});
     $("#be-add").onclick=()=>{rows.push(B("Novo tag","#a5b4fc","",undefined,5,5,"Conceitos"));draw();const ins=$$("#ovroot [data-f=name]");ins[ins.length-1].focus()};
@@ -1259,6 +1266,34 @@ const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String
 const usePitch=a=>a&&a.pitch!==undefined?!!a.pitch:!!(a&&a.type==="jogo");
 function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS.includes(b.group));a.buttons=btns.map(b=>{const ex=old.find(o=>o.name===b.name);return Object.assign({},b,{id:ex?ex.id:newId()})});
   for(const id of Object.keys(a.openToggles||{}))if(!a.buttons.find(b=>b.id===id))delete a.openToggles[id];a.protocol=a.protocol||null}
+/* custom colour window: saturation/value square, hue slider, HEX and RGB fields */
+function openColorPicker(init,onPick){
+  const h2r=h=>{h=String(h||"#888888").replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16)||0;return[(n>>16)&255,(n>>8)&255,n&255]};
+  const r2h=(r,g,b)=>"#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
+  const rgb2hsv=(r,g,b)=>{r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;if(d){h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360}return[h,mx?d/mx:0,mx]};
+  const hsv2rgb=(h,s,v)=>{const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;const [r,g,b]=h<60?[c,x,0]:h<120?[x,c,0]:h<180?[0,c,x]:h<240?[0,x,c]:h<300?[x,0,c]:[c,0,x];return[(r+m)*255,(g+m)*255,(b+m)*255]};
+  let [H,S,V]=rgb2hsv(...h2r(init));
+  const box=$("#ovroot2");
+  box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Cor" style="width:min(360px,100%);gap:14px">
+    <div class="cp-sv" id="cp-sv"><div class="cp-dot" id="cp-dot"></div></div>
+    <div class="cp-row"><div class="cp-prev" id="cp-prev"></div><input type="range" class="cp-hue" id="cp-hue" min="0" max="360" step="1" aria-label="Matiz"></div>
+    <div class="cp-row" style="justify-content:space-between"><label class="cp-f hex"><input type="text" id="cp-hex" maxlength="7" autocomplete="off" spellcheck="false">HEX</label>
+      <label class="cp-f rgb"><input type="number" min="0" max="255" id="cp-r">R</label><label class="cp-f rgb"><input type="number" min="0" max="255" id="cp-g">G</label><label class="cp-f rgb"><input type="number" min="0" max="255" id="cp-b">B</label></div>
+    <div class="foot"><button class="btn" type="button" id="cp-cancel">Cancelar</button><button class="btn primary" type="button" id="cp-ok">Aplicar</button></div></div></div>`;
+  const sv=$("#cp-sv"),dot=$("#cp-dot"),hue=$("#cp-hue"),hex=$("#cp-hex"),prev=$("#cp-prev"),R_=$("#cp-r"),G_=$("#cp-g"),B_=$("#cp-b");
+  const cur_=()=>r2h(...hsv2rgb(H,S,V));
+  const paint=skip=>{const c=cur_(),[r,g,b]=h2r(c);sv.style.backgroundColor=`hsl(${H},100%,50%)`;dot.style.left=(S*100)+"%";dot.style.top=((1-V)*100)+"%";dot.style.background=c;prev.style.background=c;
+    if(skip!=="hue")hue.value=Math.round(H);if(skip!=="hex"){hex.value=c.slice(1).toUpperCase();hex.classList.remove("bad")}if(skip!=="rgb"){R_.value=r;G_.value=g;B_.value=b}};
+  const setSV=e=>{const r=sv.getBoundingClientRect();S=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));V=Math.max(0,Math.min(1,1-(e.clientY-r.top)/r.height));paint()};
+  sv.onpointerdown=e=>{e.preventDefault();sv.setPointerCapture(e.pointerId);setSV(e);sv.onpointermove=setSV};
+  sv.onpointerup=sv.onpointercancel=()=>{sv.onpointermove=null};
+  hue.oninput=()=>{H=+hue.value;paint("hue")};
+  hex.oninput=()=>{let v=hex.value.trim().replace(/^#/,"");if(/^[0-9a-f]{3}$/i.test(v))v=v.split("").map(c=>c+c).join("");if(/^[0-9a-f]{6}$/i.test(v)){[H,S,V]=rgb2hsv(...h2r(v));paint("hex")}else hex.classList.add("bad")};
+  [R_,G_,B_].forEach(el=>el.oninput=()=>{[H,S,V]=rgb2hsv(+R_.value||0,+G_.value||0,+B_.value||0);paint("rgb")});
+  $("#cp-cancel").onclick=()=>{box.innerHTML=""};
+  $("#cp-ok").onclick=()=>{const c=cur_();box.innerHTML="";onPick(c)};
+  paint();
+}
 function closeOv(){$("#ovroot").innerHTML=""}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if($("#ovroot2").children.length){if($("#cr-c"))$("#ovroot2").innerHTML=""}else if($("#ovroot").children.length)closeOv();else{const d=$("#tagsdrawer");if(d&&!d.hidden){d.hidden=true;$("#drawerbg").hidden=true;$("#opentags").setAttribute("aria-expanded","false")}}}});
 
