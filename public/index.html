@@ -156,6 +156,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tagbtn .name{overflow-wrap:break-word;hyphens:auto;font-size:18px}
 .tagbtn.desc{background:var(--surface);color:var(--fg);border:2px dashed var(--dc);min-height:56px;box-shadow:none}
 .tagbtn.desc .m{color:var(--muted)}
+.mkbtn{display:inline-flex;flex-direction:column;align-items:center;gap:0;padding:2px 6px}
 .swatch{width:44px;height:34px;border-radius:8px;border:1px solid var(--line);cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--surface)}
 .cp-sv{position:relative;height:200px;border-radius:8px;cursor:crosshair;touch-action:none;background-image:linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,transparent)}
 .cp-dot{position:absolute;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1.5px #000;transform:translate(-50%,-50%);pointer-events:none}
@@ -808,6 +809,9 @@ function markSVG(pos,cfg){if(!pos)return "";const x=pos.x/posW(pos)*105,y=pos.y/
   return cfg.marker==="x"?`<path class="markx" d="M${f(x-r)} ${f(y-r)}L${f(x+r)} ${f(y+r)}M${f(x+r)} ${f(y-r)}L${f(x-r)} ${f(y+r)}" style="stroke:${cfg.mcolor};stroke-width:${f(.9*cfg.size)};stroke-linecap:round;fill:none"/>`
     :`<circle class="mark" cx="${f(x)}" cy="${f(y)}" r="${f(r)}" style="fill:${cfg.mcolor};stroke:#fff;stroke-width:${f(.5*cfg.size)}"/>`}
 const posW=p=>+p.w>0?+p.w:100,posH=p=>+p.h>0?+p.h:100;
+/* per-category marker (shape/colour/size) on top of the protocol's pitch settings */
+const markCfg=(a,b)=>{const c=pcfg(a),m=b&&b.mk;if(!m)return c;return Object.assign(c,{marker:m.marker==="x"?"x":m.marker==="circle"?"circle":c.marker,size:+m.size>0?+m.size:c.size,mcolor:/^#[0-9a-f]{6}$/i.test(m.color||"")?m.color:c.mcolor})};
+const mkIcon=cfg=>{const r=7*Math.min(1.6,Math.max(.6,cfg.size));return `<svg width="26" height="26" viewBox="-13 -13 26 26" aria-hidden="true">${cfg.marker==="x"?`<path d="M${-r} ${-r}L${r} ${r}M${r} ${-r}L${-r} ${r}" stroke="${cfg.mcolor}" stroke-width="${(2.6*Math.min(1.6,cfg.size)).toFixed(1)}" stroke-linecap="round"/>`:`<circle r="${r}" fill="${cfg.mcolor}" stroke="#fff" stroke-width="1.5"/>`}</svg>`};
 function pitchSVG(pos,cfg){cfg=cfg||pcfg(cur);
   return `<svg class="pitch ${cfg.theme}" id="pitch" viewBox="-2 -2 109 72" aria-label="Campograma" role="img">
     <rect x="0" y="0" width="105" height="68"/><line x1="52.5" y1="0" x2="52.5" y2="68"/><circle class="l" cx="52.5" cy="34" r="9.15"/>
@@ -832,9 +836,9 @@ function openTagPitch(tagId){
   const a=cur,t=a.tags.find(x=>x.id===tagId);if(!t)return;const bak=t.pos?Object.assign({},t.pos):null;
   $("#ovroot2").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Posição no campo" style="width:min(640px,100%)">
     <h2 style="font-size:20px">Posição · ${esc(t.code)} · ${fmtS(t.start)}</h2>
-    <div class="pitchwrap">${pitchSVG(t.pos)}<div class="coord" id="pt-coord">${t.pos?`x ${t.pos.x} · y ${t.pos.y}`:"Toque no campo para marcar."}</div></div>
+    <div class="pitchwrap">${pitchSVG(t.pos,markCfg(a,btnOf(a,t.btn)))}<div class="coord" id="pt-coord">${t.pos?`x ${t.pos.x} · y ${t.pos.y}`:"Toque no campo para marcar."}</div></div>
     <div class="foot"><button class="btn sm ghost" type="button" id="pt-clear">Remover posição</button><button class="btn" type="button" id="pt-cancel">Cancelar</button><button class="btn primary" type="button" id="pt-ok">Salvar</button></div></div></div>`;
-  wirePitch($("#ovroot2"),t,()=>{$("#pt-coord").textContent=`x ${t.pos.x} · y ${t.pos.y}`});
+  wirePitch($("#ovroot2"),t,()=>{$("#pt-coord").textContent=`x ${t.pos.x} · y ${t.pos.y}`},markCfg(a,btnOf(a,t.btn)));
   const close=()=>{$("#ovroot2").innerHTML=""};
   $("#pt-cancel").onclick=()=>{if(bak)t.pos=bak;else delete t.pos;close()};
   $("#pt-clear").onclick=()=>{delete t.pos;store.save(a);close();renderLog()};
@@ -876,9 +880,9 @@ function quickPick(b,tag,opts){
   const stepPitch=()=>{
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Posição no campo" style="width:min(640px,100%)">
       ${head(opts.ratingOnly||opts.pitchOnly?"posição no campo":lbl(cur.type==="jogo"?"2 de 2":"3 de 3","posição no campo"))}
-      <div class="pitchwrap">${pitchSVG(tag.pos)}<div class="coord" id="pt-coord">${tag.pos?`x ${tag.pos.x} · y ${tag.pos.y}`:"Toque no campo para marcar (X 0–"+pcfg(cur).w+", Y 0–"+pcfg(cur).h+"). Ataque da esquerda para a direita."}</div></div>
+      <div class="pitchwrap">${pitchSVG(tag.pos,markCfg(cur,b))}<div class="coord" id="pt-coord">${tag.pos?`x ${tag.pos.x} · y ${tag.pos.y}`:"Toque no campo para marcar (X 0–"+pcfg(cur).w+", Y 0–"+pcfg(cur).h+"). Ataque da esquerda para a direita."}</div></div>
       <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem posição</button><button class="btn primary" type="button" id="pt-ok" ${tag.pos?"":"disabled"}>Confirmar</button></div></div></div>`;
-    wirePitch(box,tag,()=>{$("#pt-ok").disabled=false;$("#pt-coord").textContent=`x ${tag.pos.x} · y ${tag.pos.y}`});
+    wirePitch(box,tag,()=>{$("#pt-ok").disabled=false;$("#pt-coord").textContent=`x ${tag.pos.x} · y ${tag.pos.y}`},markCfg(cur,b));
     $("#qp-skip").onclick=()=>{delete tag.pos;finish()};
     $("#pt-ok").onclick=finish;
     box.onkeydown=e=>{if(e.key==="Enter"&&tag.pos){finish()}else if(e.key==="Escape"){delete tag.pos;finish()}else return;e.preventDefault()};
@@ -1175,7 +1179,7 @@ function openButtonEditor(opts){
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="be-h">
       <h2 id="be-h">${draft?"Criar protocolo":"Botões de tag"}</h2>
       <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. “Atleta?” define se o botão pergunta atleta e avaliação depois do clique. Botão de <b>categoria</b> cria a tag; <b>descritor</b> funciona como rótulo e só vale depois de uma categoria (em grupo no painel entra na última tag marcada; “ao ativar” aparece logo depois de tocar a categoria).</p>
-      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo / exibição</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Atleta?</th><th></th></tr></thead><tbody>
+      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo / exibição</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Atleta?</th><th>Marcador</th><th></th></tr></thead><tbody>
       ${rows.map((b,i)=>`<tr>
         <td><button type="button" class="swatch" data-cp="${i}" style="background:${esc(b.color)}" aria-label="Cor ${esc(String(b.color||"").toUpperCase())}"></button></td>
         <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
@@ -1185,6 +1189,7 @@ function openButtonEditor(opts){
         <td><input class="n" type="number" min="0" id="be-l-${b.id}" data-i="${i}" data-f="lead" value="${b.lead}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
         <td><input class="n" type="number" min="0" id="be-g-${b.id}" data-i="${i}" data-f="lag" value="${b.lag}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
         <td style="text-align:center"><input type="checkbox" id="be-a-${b.id}" data-i="${i}" data-f="ask" ${b.ask===false?"":"checked"} ${b.kind==="descritor"?"disabled":""} aria-label="Perguntar atleta e avaliação"></td>
+        <td style="text-align:center">${b.kind==="descritor"?"":`<button type="button" class="btn sm ghost mkbtn" data-mk="${i}" title="${b.mk?"Marcador próprio":"Marcador do protocolo"}">${mkIcon(markCfg(a,b))}${b.mk?"":'<span class="muted" style="font-size:11px">padrão</span>'}</button>`}</td>
         <td style="white-space:nowrap"><button class="btn sm ghost" type="button" data-up="${i}" aria-label="Subir">↑</button><button class="btn sm ghost danger" type="button" data-x="${i}" aria-label="Remover">✕</button></td>
       </tr>`).join("")}
       </tbody></table></div>
@@ -1215,6 +1220,7 @@ function openButtonEditor(opts){
       r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode"||f==="kind"||f==="dshow")draw()});
     $$("#ovroot [data-x]").forEach(el=>el.onclick=()=>{rows.splice(+el.dataset.x,1);draw()});
 
+    $$("#ovroot [data-mk]").forEach(el=>el.onclick=()=>openMarkerEditor(a,rows[+el.dataset.mk],draw));
     $$("#ovroot [data-cp]").forEach(el=>el.onclick=()=>openColorPicker(rows[+el.dataset.cp].color,c=>{rows[+el.dataset.cp].color=c;el.style.background=c;el.setAttribute("aria-label","Cor "+c.toUpperCase())}));
     $$("#ovroot [data-dl]").forEach(el=>el.onchange=()=>{const r=rows[+el.dataset.dl];r.dcats=$$(`#ovroot [data-dl="${el.dataset.dl}"]:checked`).map(c=>c.value);const sm=el.closest("details").querySelector("summary");sm.textContent=r.dcats.length?r.dcats.join(", "):"Qualquer categoria"});
     $$("#ovroot [data-up]").forEach(el=>el.onclick=()=>{const i=+el.dataset.up;if(i>0){[rows[i-1],rows[i]]=[rows[i],rows[i-1]];draw()}});
@@ -1261,13 +1267,36 @@ function protoSelHTML(a){const list=protocols().filter(p=>(p.type||a.type)===a.t
 function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
 function refreshProtoSel(a){const el=$("#protosel");if(!el)return;el.outerHTML=protoSelHTML(a);wireProtoSel(a)}
 function protocols(){if(!store.config.protocols){try{store.config.protocols=[]}catch(e){store.config=Object.assign({},store.config,{protocols:[]})}}return store.config.protocols}
-const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria",...(r.kind==="descritor"?{dshow:isAct(r)?"on:":"grupo",...(isAct(r)?{dcats:descCats(r).slice()}:{})}:{})}));
+const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria",...(r.mk&&r.kind!=="descritor"?{mk:Object.assign({},r.mk)}:{}),...(r.kind==="descritor"?{dshow:isAct(r)?"on:":"grupo",...(isAct(r)?{dcats:descCats(r).slice()}:{})}:{})}));
 /* apply a button set to an analysis, keeping ids of same-named buttons so old tags keep their colors */
 const usePitch=a=>a&&a.pitch!==undefined?!!a.pitch:!!(a&&a.type==="jogo");
 function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS.includes(b.group));a.buttons=btns.map(b=>{const ex=old.find(o=>o.name===b.name);return Object.assign({},b,{id:ex?ex.id:newId()})});
   for(const id of Object.keys(a.openToggles||{}))if(!a.buttons.find(b=>b.id===id))delete a.openToggles[id];a.protocol=a.protocol||null}
 /* custom colour window: saturation/value square, hue slider, HEX and RGB fields */
-function openColorPicker(init,onPick){
+function openMarkerEditor(a,row,after){
+  const base=pcfg(a);let m=Object.assign({marker:base.marker,size:base.size,color:base.mcolor},row.mk||{});
+  const box=$("#ovroot2");
+  const draw=()=>{const cfg=markCfg(a,{mk:m});
+    box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Marcador" style="width:min(420px,100%)">
+      <h2 style="font-size:20px">Marcador · ${esc(row.name||"")}</h2>
+      <div class="cp-row" style="flex-wrap:wrap;gap:14px">
+        <label class="cp-f" style="text-align:left">Forma<select id="mk-shape" style="width:auto"><option value="circle" ${m.marker==="circle"?"selected":""}>Circunferência</option><option value="x" ${m.marker==="x"?"selected":""}>X</option></select></label>
+        <label class="cp-f" style="text-align:left">Tamanho<input type="number" id="mk-size" min="0.5" max="4" step="0.25" value="${m.size}" style="width:80px"></label>
+        <div class="cp-f" style="text-align:left">Cor<button type="button" class="swatch" id="mk-color" style="background:${esc(m.color)}" aria-label="Cor do marcador"></button></div>
+        <div class="cp-f">Prévia<div style="height:34px;display:flex;align-items:center;justify-content:center">${mkIcon(cfg)}</div></div>
+      </div>
+      <div class="pitchwrap" style="max-width:360px;margin:0 auto">${pitchSVG({x:50,y:50,w:100,h:100},Object.assign({},cfg,{w:100,h:100}))}</div>
+      <div class="foot"><button class="btn sm ghost" type="button" id="mk-reset">Usar o do protocolo</button><button class="btn" type="button" id="mk-cancel">Cancelar</button><button class="btn primary" type="button" id="mk-ok">Salvar</button></div></div></div>`;
+    $("#mk-shape").onchange=e=>{m.marker=e.target.value;setTimeout(draw,0)};
+    $("#mk-size").onchange=e=>{const v=Math.min(4,Math.max(.5,parseFloat(e.target.value)||1));if(v===m.size)return;m.size=v;setTimeout(draw,0)};
+    $("#mk-color").onclick=()=>openColorPicker(m.color,c=>{m.color=c;draw()},draw);
+    $("#mk-reset").onclick=()=>{delete row.mk;box.innerHTML="";after()};
+    $("#mk-cancel").onclick=()=>{box.innerHTML=""};
+    $("#mk-ok").onclick=()=>{row.mk={marker:m.marker,size:m.size,color:m.color};box.innerHTML="";after()};
+  };
+  draw();
+}
+function openColorPicker(init,onPick,onCancel){
   const h2r=h=>{h=String(h||"#888888").replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16)||0;return[(n>>16)&255,(n>>8)&255,n&255]};
   const r2h=(r,g,b)=>"#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
   const rgb2hsv=(r,g,b)=>{r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;if(d){h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360}return[h,mx?d/mx:0,mx]};
@@ -1290,7 +1319,7 @@ function openColorPicker(init,onPick){
   hue.oninput=()=>{H=+hue.value;paint("hue")};
   hex.oninput=()=>{let v=hex.value.trim().replace(/^#/,"");if(/^[0-9a-f]{3}$/i.test(v))v=v.split("").map(c=>c+c).join("");if(/^[0-9a-f]{6}$/i.test(v)){[H,S,V]=rgb2hsv(...h2r(v));paint("hex")}else hex.classList.add("bad")};
   [R_,G_,B_].forEach(el=>el.oninput=()=>{[H,S,V]=rgb2hsv(+R_.value||0,+G_.value||0,+B_.value||0);paint("rgb")});
-  $("#cp-cancel").onclick=()=>{box.innerHTML=""};
+  $("#cp-cancel").onclick=()=>{box.innerHTML="";onCancel&&onCancel()};
   $("#cp-ok").onclick=()=>{const c=cur_();box.innerHTML="";onPick(c)};
   paint();
 }
