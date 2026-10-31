@@ -172,6 +172,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .dsel{display:flex;flex-wrap:wrap;gap:10px}
 .dsec-h{font:700 12px var(--f-body,inherit);letter-spacing:.08em;text-transform:uppercase;color:var(--muted,#888);margin:4px 0 -2px}
 input.dsec{margin-top:6px;width:100%;font-size:13px;padding:6px 8px}
+.dzone{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;color:var(--muted,#888);white-space:nowrap}.dzone input{width:56px;font-size:13px;padding:5px 6px}
 .dchip{border:2px dashed var(--dc);background:var(--surface);color:var(--fg);border-radius:10px;padding:14px 18px;font:600 16px var(--f-body,inherit);cursor:pointer;min-height:52px}
 .dchip[aria-pressed="true"]{background:var(--dc);color:#111;border-style:solid}
 .dpill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;border:1px dashed var(--muted);margin:2px 3px 0 0;font-family:var(--f-body,inherit)}
@@ -758,6 +759,13 @@ function renderPad(){
 }
 const isAct=d=>String(d.dshow||"").startsWith("on");
 const descCats=d=>Array.isArray(d.dcats)?d.dcats:(String(d.dshow||"").length>3?[String(d.dshow).slice(3)]:[]);
+/* a descriptor can own a stretch of the pitch length (X, 0–100 % from our goal to theirs): with the campograma on, it is filled from the marked position instead of asked */
+const zoneOf=d=>{const x0=parseFloat(d&&d.zx0),x1=parseFloat(d&&d.zx1);return isFinite(x0)&&isFinite(x1)&&x1>x0?[x0,x1]:null};
+function zonedDescs(a,b){return usePitch(a)?activationDescs(a,b).filter(zoneOf):[]}
+function applyZone(a,t){if(!t||t.sync)return;const zs=zonedDescs(a,btnOf(a,t.btn));if(!zs.length)return;const names=zs.map(d=>d.name);
+  const rest=(t.desc||[]).filter(x=>!names.includes(x));let m=null;
+  if(t.pos){const x=t.pos.x/posW(t.pos)*100;m=zs.find(d=>{const z=zoneOf(d);return x>=z[0]&&x<z[1]})||zs.find(d=>{const z=zoneOf(d);return x>=z[0]&&x<=z[1]})}
+  t.desc=m?[m.name,...rest]:rest;if(!t.desc.length)delete t.desc}
 function activationDescs(a,b){if(!b||b.kind==="descritor")return [];return a.buttons.filter(d=>d.kind==="descritor"&&isAct(d)&&(!descCats(d).length||descCats(d).includes(b.name)))}
 function applyDescriptor(a,b){
   const el=$(`[data-tag="${b.id}"]`);if(el){el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),140)}
@@ -789,7 +797,7 @@ function fireTag(bid){
   if(grp(b)===KEY_GROUP){quickPick(b,tag,{ratingOnly:true});return}
   if(a.type==="jogo"){quickPick(b,tag,{jogo:true});return}
   if(b.ask!==false&&!roster().length&&usePitch(a)){quickPick(b,tag,{pitchOnly:true});return}
-  if(b.ask===false||!roster().length){if(activationDescs(a,b).length){quickPick(b,tag,{descOnly:true});return}addTag(tag);toast(b.name+" · "+fmtS(t));return}
+  if(b.ask===false||!roster().length){if(activationDescs(a,b).filter(d=>!(usePitch(a)&&zoneOf(d))).length){quickPick(b,tag,{descOnly:true});return}addTag(tag);toast(b.name+" · "+fmtS(t));return}
   quickPick(b,tag);
 }
 /* Sync mark: the referee's first whistle, used to align the XML with the video. Never asks for athlete or rating. */
@@ -839,15 +847,15 @@ function openTagPitch(tagId){
   wirePitch($("#ovroot2"),t,()=>{$("#pt-coord").textContent=`x ${t.pos.x} · y ${t.pos.y}`},markCfg(a,btnOf(a,t.btn)));
   const close=()=>{$("#ovroot2").innerHTML=""};
   $("#pt-cancel").onclick=()=>{if(bak)t.pos=bak;else delete t.pos;close()};
-  $("#pt-clear").onclick=()=>{delete t.pos;store.save(a);close();renderLog()};
-  $("#pt-ok").onclick=()=>{store.save(a);close();renderLog()};
+  $("#pt-clear").onclick=()=>{delete t.pos;applyZone(a,t);store.save(a);close();renderLog()};
+  $("#pt-ok").onclick=()=>{applyZone(a,t);store.save(a);close();renderLog()};
 }
 /* after a tag click: step 1 athlete, step 2 rating. The tag's time was already captured. */
 function quickPick(b,tag,opts){
   opts=opts||{};
   const r=groupedRoster().flatMap(g=>g.players),KEYS="123456789qwertyuiopasdfghjklzxcvbnm";
   const box=$("#ovroot2");
-  const actD=activationDescs(cur,b);let dAsked=false,chain=null;
+  const actD=activationDescs(cur,b).filter(d=>!(usePitch(cur)&&zoneOf(d)));let dAsked=false,chain=null;
   /* descriptors with a "Seção" are picked one per section (e.g. Setor + Momento); without sections it stays one tap = one descriptor */
   const secs=[...new Set(actD.map(d=>String(d.dsec||"").trim()))];
   const stepDescSec=()=>{dAsked=true;const pick={};
@@ -1139,6 +1147,7 @@ function addTag(tag){
   tag.id=newId();tag.note=tag.note||"";tag.createdAt=now();
   const fb=btnOf(cur,tag.btn);if(fb&&!tag.sync){const g=grp(fb);if(g===KEY_GROUP&&!tag.kb)tag.kb=fb.name;if(g==="Conceitos"&&!tag.cp)tag.cp=fb.name}
   tag.athletes=tag.athletes||[];tag.athNames=tag.athNames||{};tag.athletes.forEach(id=>tag.athNames[id]=tag.athNames[id]||athLabel(id));
+  applyZone(cur,tag);
   cur.tags.push(tag);cur.tags.sort((x,y)=>x.start-y.start);
   store.save(cur);renderLog();
 }
@@ -1204,7 +1213,7 @@ function openButtonEditor(opts){
         <td><button type="button" class="swatch" data-cp="${i}" style="background:${esc(b.color)}" aria-label="Cor ${esc(String(b.color||"").toUpperCase())}"></button></td>
         <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
         <td><select id="be-k2-${b.id}" data-i="${i}" data-f="kind" aria-label="Função"><option value="categoria" ${b.kind==="descritor"?"":"selected"}>Categoria</option><option value="descritor" ${b.kind==="descritor"?"selected":""}>Descritor</option></select></td>
-        <td>${b.kind==="descritor"?`<select id="be-ds-${b.id}" data-i="${i}" data-f="dshow" aria-label="Exibição do descritor"><option value="grupo" ${isAct(b)?"":"selected"}>Grupo no painel</option><option value="on:" ${isAct(b)?"selected":""}>Ao ativar categoria</option></select>${isAct(b)?`<details class="dlink"><summary>${(b.dcats||[]).length?esc(b.dcats.join(", ")):"Qualquer categoria"}</summary><div class="dlink-list">${rows.filter(x=>x.kind!=="descritor"&&String(x.name).trim()).map(x=>`<label><input type="checkbox" data-dl="${i}" value="${esc(x.name)}" ${(b.dcats||[]).includes(x.name)?"checked":""}> ${esc(x.name)}</label>`).join("")}<div class="muted" style="font-size:11.5px">Nenhuma marcada = qualquer categoria</div></div></details><input type="text" class="dsec" data-i="${i}" data-f="dsec" value="${esc(b.dsec||"")}" placeholder="Seção (ex.: Setor)" aria-label="Seção do descritor" title="Descritores com seções diferentes podem ser escolhidos juntos (um por seção)">`:""}`:`<select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select>`}</td>
+        <td>${b.kind==="descritor"?`<select id="be-ds-${b.id}" data-i="${i}" data-f="dshow" aria-label="Exibição do descritor"><option value="grupo" ${isAct(b)?"":"selected"}>Grupo no painel</option><option value="on:" ${isAct(b)?"selected":""}>Ao ativar categoria</option></select>${isAct(b)?`<details class="dlink"><summary>${(b.dcats||[]).length?esc(b.dcats.join(", ")):"Qualquer categoria"}</summary><div class="dlink-list">${rows.filter(x=>x.kind!=="descritor"&&String(x.name).trim()).map(x=>`<label><input type="checkbox" data-dl="${i}" value="${esc(x.name)}" ${(b.dcats||[]).includes(x.name)?"checked":""}> ${esc(x.name)}</label>`).join("")}<div class="muted" style="font-size:11.5px">Nenhuma marcada = qualquer categoria</div></div></details><input type="text" class="dsec" data-i="${i}" data-f="dsec" value="${esc(b.dsec||"")}" placeholder="Seção (ex.: Setor)" aria-label="Seção do descritor" title="Descritores com seções diferentes podem ser escolhidos juntos (um por seção)"><span class="dzone" title="Faixa do comprimento do campo (0 = nosso gol, 100 = gol adversário). Com o campograma ligado, o descritor é preenchido pela posição marcada.">Faixa X <input type="number" min="0" max="100" step="any" data-i="${i}" data-f="zx0" value="${esc(b.zx0??"")}" aria-label="Faixa X de"> a <input type="number" min="0" max="100" step="any" data-i="${i}" data-f="zx1" value="${esc(b.zx1??"")}" aria-label="Faixa X até"></span>`:""}`:`<select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select>`}</td>
         <td><select id="be-m-${b.id}" data-i="${i}" data-f="mode" ${b.kind==="descritor"?"disabled":""}><option value="instant" ${b.mode==="instant"?"selected":""}>Instantâneo</option><option value="toggle" ${b.mode==="toggle"?"selected":""}>Liga/desliga</option></select></td>
         <td><input class="n" type="number" min="0" id="be-l-${b.id}" data-i="${i}" data-f="lead" value="${b.lead}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
         <td><input class="n" type="number" min="0" id="be-g-${b.id}" data-i="${i}" data-f="lag" value="${b.lag}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
@@ -1308,7 +1317,7 @@ function protoSelHTML(a){const list=protocols().filter(p=>(p.type||a.type)===a.t
 function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
 function refreshProtoSel(a){const el=$("#protosel");if(!el)return;el.outerHTML=protoSelHTML(a);wireProtoSel(a)}
 function protocols(){if(!store.config.protocols){try{store.config.protocols=[]}catch(e){store.config=Object.assign({},store.config,{protocols:[]})}}return store.config.protocols}
-const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria",...(r.mk&&r.kind!=="descritor"?{mk:Object.assign({},r.mk)}:{}),...(r.kind==="descritor"?{dshow:isAct(r)?"on:":"grupo",...(isAct(r)?{dcats:descCats(r).slice(),...(String(r.dsec||"").trim()?{dsec:String(r.dsec).trim()}:{})}:{})}:{})}));
+const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria",...(r.mk&&r.kind!=="descritor"?{mk:Object.assign({},r.mk)}:{}),...(r.kind==="descritor"?{dshow:isAct(r)?"on:":"grupo",...(isAct(r)?{dcats:descCats(r).slice(),...(String(r.dsec||"").trim()?{dsec:String(r.dsec).trim()}:{}),...(zoneOf(r)?{zx0:zoneOf(r)[0],zx1:zoneOf(r)[1]}:{})}:{})}:{})}));
 /* apply a button set to an analysis, keeping ids of same-named buttons so old tags keep their colors */
 const usePitch=a=>a&&a.pitch!==undefined?!!a.pitch:!!(a&&a.type==="jogo");
 function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS.includes(b.group));a.buttons=btns.map(b=>{const ex=old.find(o=>o.name===b.name);return Object.assign({},b,{id:ex?ex.id:newId()})});
@@ -1351,7 +1360,7 @@ function openMapView(){
       };
       const end=ev=>{el.onpointermove=el.onpointerup=el.onpointercancel=null;el.classList.remove("pm-drag");
         if(ev.type==="pointercancel"){t.pos=bak;draw();return}
-        if(moved){sel=t.id;store.save(a);renderLog();draw();toast(`${t.code} · posição ${t.pos.x};${t.pos.y}`);return}
+        if(moved){sel=t.id;applyZone(a,t);store.save(a);renderLog();draw();toast(`${t.code} · posição ${t.pos.x};${t.pos.y}`);return}
         sel=sel===t.id?null:t.id;draw();const rr=$(`[data-pr="${sel}"]`);if(rr)rr.scrollIntoView({block:"nearest"})};
       el.onpointerup=end;el.onpointercancel=end;
     });
