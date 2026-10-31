@@ -137,6 +137,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tagbtn .name{overflow-wrap:break-word;hyphens:auto;font-size:18px}
 .tagbtn.desc{background:var(--surface);color:var(--fg);border:2px dashed var(--dc);min-height:56px;box-shadow:none}
 .tagbtn.desc .m{color:var(--muted)}
+.dlink{margin-top:6px;font-size:12.5px}
+.dlink summary{cursor:pointer;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlink-list{display:flex;flex-direction:column;gap:4px;padding:6px 0;max-height:200px;overflow:auto}
+.dlink-list label{display:flex;gap:6px;align-items:center;white-space:nowrap}
 .dsel{display:flex;flex-wrap:wrap;gap:10px}
 .dchip{border:2px dashed var(--dc);background:var(--surface);color:var(--fg);border-radius:10px;padding:14px 18px;font:600 16px var(--f-body,inherit);cursor:pointer;min-height:52px}
 .dchip[aria-pressed="true"]{background:var(--dc);color:#111;border-style:solid}
@@ -713,7 +717,7 @@ function renderPad(){
       <span class="name">${esc(b.name)}</span>
       <span class="m" ${open?`data-live="${b.id}"`:""}>${open?"gravando…":(b.mode==="toggle"?"liga / desliga":`−${b.lead}s / +${b.lag}s`)}</span>
     </button>`};
-  const isD=b=>b.kind==="descritor",cats=a.buttons.filter(b=>!isD(b)),descs=a.buttons.filter(b=>isD(b)&&!String(b.dshow||"grupo").startsWith("on:"));
+  const isD=b=>b.kind==="descritor",cats=a.buttons.filter(b=>!isD(b)),descs=a.buttons.filter(b=>isD(b)&&!isAct(b));
   const dbtn=b=>`<button class="tagbtn desc" type="button" data-tag="${b.id}" style="--dc:${esc(b.color)}"><span class="name">${esc(b.name)}</span><span class="m">descritor</span></button>`;
   const used=GROUPS.filter(g=>cats.some(b=>grp(b)===g));
   $("#pad").innerHTML=`<div class="padgrp action-row"><div class="pad-inner">${btn(ACTION_BTN).replace('class="tagbtn ','class="tagbtn action ')}</div></div>`+(a.buttons.length
@@ -721,7 +725,9 @@ function renderPad(){
     :`<div class="empty">Nenhum botão. Use “Editar botões”.</div>`);
   $$("[data-tag]").forEach(el=>el.onclick=()=>fireTag(el.dataset.tag));
 }
-function activationDescs(a,b){if(!b||b.kind==="descritor")return [];return a.buttons.filter(d=>d.kind==="descritor"&&String(d.dshow||"").startsWith("on:")&&(d.dshow==="on:"||d.dshow==="on:"+b.name))}
+const isAct=d=>String(d.dshow||"").startsWith("on");
+const descCats=d=>Array.isArray(d.dcats)?d.dcats:(String(d.dshow||"").length>3?[String(d.dshow).slice(3)]:[]);
+function activationDescs(a,b){if(!b||b.kind==="descritor")return [];return a.buttons.filter(d=>d.kind==="descritor"&&isAct(d)&&(!descCats(d).length||descCats(d).includes(b.name)))}
 function applyDescriptor(a,b){
   const el=$(`[data-tag="${b.id}"]`);if(el){el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),140)}
   const last=a.tags.filter(t=>!t.sync).sort((x,y)=>(y.createdAt||0)-(x.createdAt||0))[0];
@@ -1115,7 +1121,7 @@ document.addEventListener("keydown",e=>{
 
 /* ---------------- button editor ---------------- */
 function openButtonEditor(opts){
-  opts=opts||{};const draft=!!opts.draft,a=draft?opts.draft:cur,saveA=()=>{if(!draft)store.save(a)};let rows=a.buttons.map(b=>Object.assign({},b));
+  opts=opts||{};const draft=!!opts.draft,a=draft?opts.draft:cur,saveA=()=>{if(!draft)store.save(a)};let rows=a.buttons.map(b=>{const r=Object.assign({},b);if(r.kind==="descritor"&&isAct(r)){r.dcats=descCats(r).slice();r.dshow="on:"}return r});
   const draw=()=>{
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="be-h">
       <h2 id="be-h">${draft?"Criar protocolo":"Botões de tag"}</h2>
@@ -1125,7 +1131,7 @@ function openButtonEditor(opts){
         <td><input type="color" id="be-c-${b.id}" data-i="${i}" data-f="color" value="${esc(b.color)}"></td>
         <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
         <td><select id="be-k2-${b.id}" data-i="${i}" data-f="kind" aria-label="Função"><option value="categoria" ${b.kind==="descritor"?"":"selected"}>Categoria</option><option value="descritor" ${b.kind==="descritor"?"selected":""}>Descritor</option></select></td>
-        <td>${b.kind==="descritor"?`<select id="be-ds-${b.id}" data-i="${i}" data-f="dshow" aria-label="Exibição do descritor">${[["grupo","Grupo no painel"],["on:","Ao ativar: qualquer categoria"],...rows.filter(x=>x.kind!=="descritor"&&String(x.name).trim()).map(x=>["on:"+x.name,"Ao ativar: "+x.name])].map(([v,l])=>`<option value="${esc(v)}" ${(b.dshow||"grupo")===v?"selected":""}>${esc(l)}</option>`).join("")}</select>`:`<select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select>`}</td>
+        <td>${b.kind==="descritor"?`<select id="be-ds-${b.id}" data-i="${i}" data-f="dshow" aria-label="Exibição do descritor"><option value="grupo" ${isAct(b)?"":"selected"}>Grupo no painel</option><option value="on:" ${isAct(b)?"selected":""}>Ao ativar categoria</option></select>${isAct(b)?`<details class="dlink"><summary>${(b.dcats||[]).length?esc(b.dcats.join(", ")):"Qualquer categoria"}</summary><div class="dlink-list">${rows.filter(x=>x.kind!=="descritor"&&String(x.name).trim()).map(x=>`<label><input type="checkbox" data-dl="${i}" value="${esc(x.name)}" ${(b.dcats||[]).includes(x.name)?"checked":""}> ${esc(x.name)}</label>`).join("")}<div class="muted" style="font-size:11.5px">Nenhuma marcada = qualquer categoria</div></div></details>`:""}`:`<select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select>`}</td>
         <td><select id="be-m-${b.id}" data-i="${i}" data-f="mode" ${b.kind==="descritor"?"disabled":""}><option value="instant" ${b.mode==="instant"?"selected":""}>Instantâneo</option><option value="toggle" ${b.mode==="toggle"?"selected":""}>Liga/desliga</option></select></td>
         <td><input class="n" type="number" min="0" id="be-l-${b.id}" data-i="${i}" data-f="lead" value="${b.lead}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
         <td><input class="n" type="number" min="0" id="be-g-${b.id}" data-i="${i}" data-f="lag" value="${b.lag}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
@@ -1157,8 +1163,10 @@ function openButtonEditor(opts){
         <button class="btn primary" type="button" id="be-save">Salvar botões</button>
       </div>`}</div></div>`;
     $$("#ovroot [data-f]").forEach(el=>el.oninput=el.onchange=()=>{const r=rows[+el.dataset.i],f=el.dataset.f;
-      r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode"||f==="kind")draw()});
+      r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode"||f==="kind"||f==="dshow")draw()});
     $$("#ovroot [data-x]").forEach(el=>el.onclick=()=>{rows.splice(+el.dataset.x,1);draw()});
+
+    $$("#ovroot [data-dl]").forEach(el=>el.onchange=()=>{const r=rows[+el.dataset.dl];r.dcats=$$(`#ovroot [data-dl="${el.dataset.dl}"]:checked`).map(c=>c.value);const sm=el.closest("details").querySelector("summary");sm.textContent=r.dcats.length?r.dcats.join(", "):"Qualquer categoria"});
     $$("#ovroot [data-up]").forEach(el=>el.onclick=()=>{const i=+el.dataset.up;if(i>0){[rows[i-1],rows[i]]=[rows[i],rows[i-1]];draw()}});
     $("#be-add").onclick=()=>{rows.push(B("Novo tag","#a5b4fc","",undefined,5,5,"Conceitos"));draw();const ins=$$("#ovroot [data-f=name]");ins[ins.length-1].focus()};
     $("#be-restore").onclick=()=>{rows=(store.config.defaults[a.type]||defaultButtons(a.type)).map(b=>Object.assign({},b,{id:newId()}));draw();toast("Botões padrão carregados. Clique em Salvar.")};
@@ -1203,7 +1211,7 @@ function protoSelHTML(a){const list=protocols().filter(p=>(p.type||a.type)===a.t
 function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
 function refreshProtoSel(a){const el=$("#protosel");if(!el)return;el.outerHTML=protoSelHTML(a);wireProtoSel(a)}
 function protocols(){if(!store.config.protocols){try{store.config.protocols=[]}catch(e){store.config=Object.assign({},store.config,{protocols:[]})}}return store.config.protocols}
-const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria",...(r.kind==="descritor"?{dshow:r.dshow||"grupo"}:{})}));
+const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria",...(r.kind==="descritor"?{dshow:isAct(r)?"on:":"grupo",...(isAct(r)?{dcats:descCats(r).slice()}:{})}:{})}));
 /* apply a button set to an analysis, keeping ids of same-named buttons so old tags keep their colors */
 const usePitch=a=>a&&a.pitch!==undefined?!!a.pitch:!!(a&&a.type==="jogo");
 function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS.includes(b.group));a.buttons=btns.map(b=>{const ex=old.find(o=>o.name===b.name);return Object.assign({},b,{id:ex?ex.id:newId()})});
