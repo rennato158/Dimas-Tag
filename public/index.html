@@ -1019,6 +1019,12 @@ async function exportRoster(rows){
   }catch(e){if(e&&e.code==="declined")return}
   const u=URL.createObjectURL(new Blob([json],{type:"application/json"}));const el=document.createElement("a");el.href=u;el.download="elenco.json";document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);toast("elenco.json salvo");
 }
+const fileSafe=n=>String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w\-]+/g,"-").replace(/^-+|-+$/g,"").toLowerCase()||"protocolo";
+async function saveJSON(filename,obj){const json=JSON.stringify(obj,null,1);
+  try{const dl=window.claude&&claude.use?await claude.use("downloads"):null;
+    if(dl){await dl.save({filename,data:new Blob([json],{type:"application/json"})});toast(filename+" salvo");return}
+  }catch(e){if(e&&e.code==="declined")return}
+  const u=URL.createObjectURL(new Blob([json],{type:"application/json"}));const el=document.createElement("a");el.href=u;el.download=filename;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);toast(filename+" salvo")}
 function normName(n){return String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim()}
 async function syncRoster(o){
   o=o||{};
@@ -1218,6 +1224,11 @@ function openButtonEditor(opts){
           <button class="btn sm ghost danger" type="button" id="pr-del" ${protocols().length?"":"disabled"}>Excluir</button>
         </div>
         <div class="proto-row">
+          <button class="btn sm" type="button" id="pr-export" ${protocols().length?"":"disabled"}>Exportar protocolo</button>
+          <label class="btn sm" for="pr-import">Importar protocolo</label><input type="file" id="pr-import" accept=".json,application/json" hidden>
+          <span class="muted" style="font-size:12px">Exporta o escolhido acima (ou todos, se nenhum estiver escolhido) em .json</span>
+        </div>
+        <div class="proto-row">
           <input type="text" id="pr-name" placeholder="Nome do novo protocolo (ex.: Posse · Sub-17)" style="flex:1 1 220px" value="${esc((protocols().find(p=>p.id===a.protocol)||{}).name||"")}">
           <label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="pr-pitch" ${usePitch(a)?"checked":""}> Descritor gráfico (campograma X/Y)</label>
           <span class="pcfg" id="pr-pcfg" ${usePitch(a)?"":"hidden"}><label>Largura X <input type="number" min="1" step="any" id="pr-pw" value="${pcfg(a).w}"></label><label>Altura Y <input type="number" min="1" step="any" id="pr-ph" value="${pcfg(a).h}"></label><label>Campo <select id="pr-pth"><option value="green" ${pcfg(a).theme==="green"?"selected":""}>Verde · linhas brancas</option><option value="white" ${pcfg(a).theme==="white"?"selected":""}>Branco · linhas cinzas</option></select></label><label>Marcador <select id="pr-pmk"><option value="circle" ${pcfg(a).marker==="circle"?"selected":""}>Circunferência</option><option value="x" ${pcfg(a).marker==="x"?"selected":""}>X</option></select></label><label>Tamanho <input type="number" min="0.5" max="4" step="0.25" id="pr-psz" value="${pcfg(a).size}"></label><label>Cor <input type="color" id="pr-pmc" value="${pcfg(a).mcolor}" style="width:42px;height:32px;padding:2px"></label><button class="btn sm ghost" type="button" id="pr-pprev">👁 Ver campo</button></span>
@@ -1254,6 +1265,22 @@ function openButtonEditor(opts){
       if(ex){ex.buttons=btns;ex.type=ptype;ex.pitch=ppitch;ex.pitchCfg=pcf;ex.updatedAt=Date.now();a.protocol=ex.id;toast("Protocolo atualizado: "+name)}else{const pr={id:"pr"+newId(),name,type:ptype,pitch:ppitch,pitchCfg:pcf,buttons:btns,createdAt:Date.now()};protocols().push(pr);a.protocol=pr.id;toast("Protocolo salvo: "+name)}
       store.saveConfig();saveA();refreshProtoSel(a);draw()};
     $("#pr-load").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");rows=pr.buttons.filter(b=>GROUPS.includes(b.group)).map(b=>Object.assign({},b,{id:newId()}));a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);draw();toast("Protocolo carregado. Clique em Salvar botões.")};
+    $("#pr-export").onclick=()=>{const pr=selProto();const list=pr?[pr]:protocols();if(!list.length)return toast("Nenhum protocolo para exportar");
+      const fname=(pr?"protocolo-"+fileSafe(pr.name):"protocolos-dimas-tag")+".json";
+      saveJSON(fname,{app:"DIMAS TAG",kind:"protocolos",version:1,exportedAt:new Date().toISOString(),protocols:list.map(x=>({name:x.name,type:x.type,pitch:x.pitch,pitchCfg:x.pitchCfg,buttons:cleanBtns(x.buttons)}))})};
+    $("#pr-import").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+      let data;try{data=JSON.parse(await f.text())}catch(err){return toast("Arquivo inválido: escolha um protocolo .json")}
+      const list=(Array.isArray(data)?data:Array.isArray(data&&data.protocols)?data.protocols:data&&data.buttons?[data]:[]).filter(x=>x&&String(x.name||"").trim()&&Array.isArray(x.buttons)&&x.buttons.length);
+      if(!list.length)return toast("Nenhum protocolo encontrado no arquivo");
+      let added=0,upd=0,last=null;
+      list.forEach(x=>{const name=String(x.name).trim(),type=x.type==="treino"?"treino":x.type==="jogo"?"jogo":a.type;
+        const btns=cleanBtns(x.buttons.filter(b=>b&&String(b.name||"").trim()).map(b=>Object.assign({},b,{id:b.id||newId(),group:GROUPS.includes(b.group)?b.group:"Conceitos"})));
+        const pc=x.pitchCfg&&typeof x.pitchCfg==="object"?Object.assign({},x.pitchCfg):undefined;
+        const ex=protocols().find(q=>q.name.toLowerCase()===name.toLowerCase());
+        if(ex){ex.buttons=btns;ex.type=type;ex.pitch=x.pitch;ex.pitchCfg=pc;ex.updatedAt=Date.now();last=ex;upd++}
+        else{const pr={id:"pr"+newId(),name,type,pitch:x.pitch,pitchCfg:pc,buttons:btns,createdAt:Date.now()};protocols().push(pr);last=pr;added++}});
+      store.saveConfig();refreshProtoSel(a);draw();if(last)$("#pr-sel").value=last.id;
+      toast(`${added} protocolo(s) importado(s)${upd?`, ${upd} atualizado(s)`:""}. Use “Carregar aqui” para aplicar.`)};
     $("#pr-del").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");const box=$("#pr-apply-box");box.hidden=false;
       box.innerHTML=`<div class="confirm">Excluir o protocolo “${esc(pr.name)}”? As análises que o usam mantêm seus botões. <button class="btn sm danger" type="button" id="pr-del-yes">Excluir</button><button class="btn sm" type="button" id="pr-del-no">Cancelar</button></div>`;
       $("#pr-del-yes").onclick=()=>{store.config.protocols=protocols().filter(p=>p.id!==pr.id);Object.values(store.analyses).forEach(x=>{if(x.protocol===pr.id)x.protocol=null});store.saveConfig();store.saveLocal();refreshProtoSel(a);draw();toast("Protocolo excluído")};
