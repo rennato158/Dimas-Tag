@@ -550,7 +550,7 @@ function renderHome(){
   $("#nf-newproto").onclick=()=>{const d=newAnalysis(newType,"Protocolo");d.protocol=null;openButtonEditor({draft:d,after:renderHome})};
   $("#newform").onsubmit=e=>{e.preventDefault();
     const a=newAnalysis(newType,$("#nf-title").value.trim(),Object.assign({data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()},newType==="jogo"?{competicao:($("#nf-comp")||{value:""}).value.trim(),rodada:($("#nf-rod")||{value:""}).value.trim()}:{}));
-    const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id}}
+    const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch}}
     store.save(a);openAnalysis(a.id)};
   $$("[data-open]").forEach(el=>{
     el.onclick=e=>{if(e.target.closest("[data-delwrap]"))return;openAnalysis(el.dataset.open)};
@@ -740,9 +740,10 @@ function fireTag(bid){
   }else{
     tag={btn:b.id,code:b.name,start:Math.max(0,t-(+b.lead||0)),end:t+(+b.lag||0),t,session:sess,st,athletes:[]};
   }
-  /* Key behaviours are team-level: no athlete, straight to Reforço/Ajuste (also in jogo, no pitch). */
+  /* Key behaviours are team-level: no athlete, straight to Reforço/Ajuste (+ campograma when the protocol's Descritor gráfico is on). */
   if(b.id===ACTION_BTN.id){quickPick(b,tag,{scope:true});return}
   if(grp(b)===KEY_GROUP){quickPick(b,tag,{ratingOnly:true});return}
+  if(b.ask!==false&&!roster().length&&usePitch(a)){quickPick(b,tag,{pitchOnly:true});return}
   if(b.ask===false||!roster().length){addTag(tag);toast(b.name+" · "+fmtS(t));return}
   quickPick(b,tag);
 }
@@ -813,7 +814,7 @@ function quickPick(b,tag,opts){
   const head=step=>`<div class="qp-h"><div style="display:flex;align-items:center;gap:8px"><span class="tagname" style="background:${esc(b.color)};color:${textOn(b.color)}">${esc(b.name)}</span><span class="num muted">${fmtS(tag.t)}</span>${tag.athletes.length?`<span class="pill">${esc(tagAthLabels(tag)[0])}</span>`:""}</div><span class="muted" style="font-size:12px">${step}</span></div>`;
   const stepPitch=()=>{
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Posição no campo" style="width:min(640px,100%)">
-      ${head(lbl("2 de 2","posição no campo"))}
+      ${head(opts.ratingOnly||opts.pitchOnly?"posição no campo":lbl(cur.type==="jogo"?"2 de 2":"3 de 3","posição no campo"))}
       <div class="pitchwrap">${pitchSVG(tag.pos)}<div class="coord" id="pt-coord">${tag.pos?`x ${tag.pos.x} · y ${tag.pos.y}`:"Toque no campo para marcar. Ataque da esquerda para a direita."}</div></div>
       <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem posição</button><button class="btn primary" type="button" id="pt-ok" ${tag.pos?"":"disabled"}>Confirmar</button></div></div></div>`;
     wirePitch(box,tag,()=>{$("#pt-ok").disabled=false;$("#pt-coord").textContent=`x ${tag.pos.x} · y ${tag.pos.y}`});
@@ -822,20 +823,21 @@ function quickPick(b,tag,opts){
     box.onkeydown=e=>{if(e.key==="Enter"&&tag.pos){finish()}else if(e.key==="Escape"){delete tag.pos;finish()}else return;e.preventDefault()};
     box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
   };
-  const step2=()=>(cur.type==="jogo"?stepPitch:stepRating)();
+  const wantPitch=usePitch(cur),afterRating=()=>wantPitch?stepPitch():finish();
+  const step2=()=>cur.type==="jogo"?(wantPitch?stepPitch():finish()):stepRating();
   const stepRating=()=>{
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Avaliação" style="width:min(420px,100%)">
-      ${head(opts.ratingOnly?"qualificação":lbl("2 de 2","qualificação"))}
+      ${head(opts.ratingOnly?"qualificação":lbl(usePitch(cur)?"2 de 3":"2 de 2","qualificação"))}
       <div class="qp rate"><button type="button" class="pos" data-r="Reforço">Reforço <span class="kk">1</span></button><button type="button" class="adj" data-r="Ajuste">Ajuste <span class="kk">2</span></button></div>
       <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem qualificação</button></div></div></div>`;
-    $$("[data-r]",box).forEach(el=>el.onclick=()=>{tag.rating=el.dataset.r;finish()});
-    $("#qp-skip").onclick=finish;
-    box.onkeydown=e=>{if(e.key==="1"){tag.rating="Reforço";finish()}else if(e.key==="2"){tag.rating="Ajuste";finish()}else if(e.key==="Escape")finish();else return;e.preventDefault()};
+    $$("[data-r]",box).forEach(el=>el.onclick=()=>{tag.rating=el.dataset.r;afterRating()});
+    $("#qp-skip").onclick=afterRating;
+    box.onkeydown=e=>{if(e.key==="1"){tag.rating="Reforço";afterRating()}else if(e.key==="2"){tag.rating="Ajuste";afterRating()}else if(e.key==="Escape")afterRating();else return;e.preventDefault()};
     box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
   };
   const stepAthlete=()=>{
   box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Atleta" style="width:min(820px,100%)">
-    ${head(lbl("1 de 2","atleta"))}
+    ${head(lbl(cur.type==="treino"&&usePitch(cur)?"1 de 3":"1 de 2","atleta"))}
     ${groupedRoster().map(g=>`<div class="qp-grp">${esc(g.name)}</div><div class="qp qpath">${g.players.map(p=>`<button type="button" data-a="${p.id}" title="${esc(p.name)}${p.pos?" · "+esc(p.pos):""}">${avatar(p)}<span class="nm">${esc(p.name)}</span></button>`).join("")}</div>`).join("")}
     <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem atleta</button></div></div></div>`;
   const pick=id=>{tag.athletes=[id];tag.athNames={[id]:athLabel(id)};step2()};
@@ -856,6 +858,7 @@ function quickPick(b,tag,opts){
     box.onkeydown=e=>{if(e.key==="1")go("Coletivo");else if(e.key==="2")go("Individual");else if(e.key==="Escape"){box.innerHTML="";toast("Ação cancelada")}else return;e.preventDefault()};
     box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
   };
+  if(opts.pitchOnly){stepPitch();return}
   if(opts.ratingOnly){stepRating();return}
   if(opts.scope){stepScope();return}
   stepAthlete();
@@ -1091,7 +1094,7 @@ document.addEventListener("keydown",e=>{
 
 /* ---------------- button editor ---------------- */
 function openButtonEditor(opts){
-  opts=opts||{};const draft=!!opts.draft,a=draft?opts.draft:cur,saveA=()=>{if(!draft)saveA()};let rows=a.buttons.map(b=>Object.assign({},b));
+  opts=opts||{};const draft=!!opts.draft,a=draft?opts.draft:cur,saveA=()=>{if(!draft)store.save(a)};let rows=a.buttons.map(b=>Object.assign({},b));
   const draw=()=>{
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="be-h">
       <h2 id="be-h">${draft?"Criar protocolo":"Botões de tag"}</h2>
@@ -1120,6 +1123,7 @@ function openButtonEditor(opts){
         </div>
         <div class="proto-row">
           <input type="text" id="pr-name" placeholder="Nome do novo protocolo (ex.: Posse · Sub-17)" style="flex:1 1 220px" value="${esc((protocols().find(p=>p.id===a.protocol)||{}).name||"")}">
+          <label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="pr-pitch" ${usePitch(a)?"checked":""}> Descritor gráfico (campograma X/Y)</label>
           <select id="pr-type" aria-label="Tipo do protocolo" style="width:auto"><option value="jogo" ${((protocols().find(p=>p.id===a.protocol)||{}).type||a.type)==="jogo"?"selected":""}>Jogo</option><option value="treino" ${((protocols().find(p=>p.id===a.protocol)||{}).type||a.type)==="treino"?"selected":""}>Treino</option></select>
           <button class="btn sm" type="button" id="pr-save">Salvar estes botões como protocolo</button>
         </div>
@@ -1137,12 +1141,14 @@ function openButtonEditor(opts){
     $("#be-add").onclick=()=>{rows.push(B("Novo tag","#a5b4fc","",undefined,5,5,"Conceitos"));draw();const ins=$$("#ovroot [data-f=name]");ins[ins.length-1].focus()};
     $("#be-restore").onclick=()=>{rows=(store.config.defaults[a.type]||defaultButtons(a.type)).map(b=>Object.assign({},b,{id:newId()}));draw();toast("Botões padrão carregados. Clique em Salvar.")};
     const selProto=()=>protocols().find(p=>p.id===$("#pr-sel").value);
+    $("#pr-pitch").onchange=e=>{a.pitch=e.target.checked;saveA()};
     $("#pr-save").onclick=()=>{const name=$("#pr-name").value.trim();if(!name)return toast("Dê um nome ao protocolo");const btns=cleanBtns(rows);if(!btns.length)return toast("Nenhum botão para salvar");
       const ex=protocols().find(p=>p.name.toLowerCase()===name.toLowerCase());
       const ptype=$("#pr-type").value||a.type;
-      if(ex){ex.buttons=btns;ex.type=ptype;ex.updatedAt=Date.now();a.protocol=ex.id;toast("Protocolo atualizado: "+name)}else{const pr={id:"pr"+newId(),name,type:ptype,buttons:btns,createdAt:Date.now()};protocols().push(pr);a.protocol=pr.id;toast("Protocolo salvo: "+name)}
+      const ppitch=$("#pr-pitch").checked;a.pitch=ppitch;
+      if(ex){ex.buttons=btns;ex.type=ptype;ex.pitch=ppitch;ex.updatedAt=Date.now();a.protocol=ex.id;toast("Protocolo atualizado: "+name)}else{const pr={id:"pr"+newId(),name,type:ptype,pitch:ppitch,buttons:btns,createdAt:Date.now()};protocols().push(pr);a.protocol=pr.id;toast("Protocolo salvo: "+name)}
       store.saveConfig();saveA();refreshProtoSel(a);draw()};
-    $("#pr-load").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");rows=pr.buttons.filter(b=>GROUPS.includes(b.group)).map(b=>Object.assign({},b,{id:newId()}));a.protocol=pr.id;draw();toast("Protocolo carregado. Clique em Salvar botões.")};
+    $("#pr-load").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");rows=pr.buttons.filter(b=>GROUPS.includes(b.group)).map(b=>Object.assign({},b,{id:newId()}));a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;draw();toast("Protocolo carregado. Clique em Salvar botões.")};
     $("#pr-del").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");const box=$("#pr-apply-box");box.hidden=false;
       box.innerHTML=`<div class="confirm">Excluir o protocolo “${esc(pr.name)}”? As análises que o usam mantêm seus botões. <button class="btn sm danger" type="button" id="pr-del-yes">Excluir</button><button class="btn sm" type="button" id="pr-del-no">Cancelar</button></div>`;
       $("#pr-del-yes").onclick=()=>{store.config.protocols=protocols().filter(p=>p.id!==pr.id);Object.values(store.analyses).forEach(x=>{if(x.protocol===pr.id)x.protocol=null});store.saveConfig();store.saveLocal();refreshProtoSel(a);draw();toast("Protocolo excluído")};
@@ -1152,7 +1158,7 @@ function openButtonEditor(opts){
       box.innerHTML=`<div class="stack" style="gap:8px"><div class="muted" style="font-size:13px">Aplicar “${esc(pr.name)}” em:</div>
         ${list.length?`<div class="picker">${list.map(x=>`<label><input type="checkbox" value="${x.id}" ${x.type===pr.type?"checked":""}> <span class="typebadge ${x.type}" style="font-size:10px">${x.type}</span> <span>${esc(x.title)}${x.protocol===pr.id?' <span class="muted">(já usa)</span>':""}</span></label>`).join("")}</div>`:`<div class="muted">Nenhuma outra análise cadastrada.</div>`}
         <div class="confirm"><button class="btn sm primary" type="button" id="pr-apply-yes" ${list.length?"":"disabled"}>Aplicar</button><button class="btn sm" type="button" id="pr-apply-no">Cancelar</button></div></div>`;
-      $("#pr-apply-yes").onclick=()=>{const ids=$$("#pr-apply-box input:checked").map(i=>i.value);let n=0;ids.forEach(id=>{const x=store.analyses[id];if(x){applyButtons(x,pr.buttons);x.protocol=pr.id;store.save(x);n++}});draw();toast(n+" análise(s) atualizada(s)")};
+      $("#pr-apply-yes").onclick=()=>{const ids=$$("#pr-apply-box input:checked").map(i=>i.value);let n=0;ids.forEach(id=>{const x=store.analyses[id];if(x){applyButtons(x,pr.buttons);if(pr.pitch!==undefined)x.pitch=pr.pitch;x.protocol=pr.id;store.save(x);n++}});draw();toast(n+" análise(s) atualizada(s)")};
       $("#pr-apply-no").onclick=draw};
     $("#be-cancel").onclick=()=>{closeOv();if(draft&&opts.after)opts.after()};
     if(draft){$("#be-psave").onclick=()=>{$("#pr-save").click();if(a.protocol){closeOv();opts.after&&opts.after()}};const ap=$("#pr-apply");if(ap)ap.hidden=true;return}
@@ -1168,11 +1174,12 @@ function openButtonEditor(opts){
 /* ---------------- protocols: named button sets, shared by all analyses ---------------- */
 function protoSelHTML(a){const list=protocols().filter(p=>(p.type||a.type)===a.type);
   return `<select class="protosel" id="protosel" aria-label="Protocolo" ${list.length?"":"disabled"}><option value="" ${list.some(p=>p.id===a.protocol)?"":"selected"} disabled>${list.length?"Protocolo…":"Nenhum protocolo de "+a.type}</option>${list.map(p=>`<option value="${p.id}" ${a.protocol===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select>`}
-function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
+function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
 function refreshProtoSel(a){const el=$("#protosel");if(!el)return;el.outerHTML=protoSelHTML(a);wireProtoSel(a)}
 function protocols(){if(!store.config.protocols){try{store.config.protocols=[]}catch(e){store.config=Object.assign({},store.config,{protocols:[]})}}return store.config.protocols}
 const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false}));
 /* apply a button set to an analysis, keeping ids of same-named buttons so old tags keep their colors */
+const usePitch=a=>a&&a.pitch!==undefined?!!a.pitch:!!(a&&a.type==="jogo");
 function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS.includes(b.group));a.buttons=btns.map(b=>{const ex=old.find(o=>o.name===b.name);return Object.assign({},b,{id:ex?ex.id:newId()})});
   for(const id of Object.keys(a.openToggles||{}))if(!a.buttons.find(b=>b.id===id))delete a.openToggles[id];a.protocol=a.protocol||null}
 function closeOv(){$("#ovroot").innerHTML=""}
