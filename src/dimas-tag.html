@@ -1119,16 +1119,17 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){if($("#ovroot2").ch
 function hexTo16(h){h=(h||"#888888").replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255].map(v=>v*256)}
 const xe=s=>String(s??"").replace(/[<>&'"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[c]));
 const r2=n=>String(+(Math.round(n*10000)/10000).toFixed(4));
-function freeText(t,code,opts){const parts=[];const n=String(t.note||"").trim();if(n)parts.push(n);
-  if(opts.details){const ath=tagAthLabels(t);if(ath.length)parts.push(ath.join(", "));
-    [t.scope,t.rating,t.kb!==code?t.kb:"",t.cp!==code?t.cp:""].forEach(v=>{if(v)parts.push(v)});
+function freeText(t,code,opts){const parts=[];const n=String(t.note||"").trim();
+  if(opts.details&&t.rating)parts.push(t.rating);
+  if(n)parts.push(n);
+  if(opts.details){[t.scope==="Individual"&&tagAthLabels(t).length?"":t.scope,t.kb!==code?t.kb:"",t.cp!==code?t.cp:""].forEach(v=>{if(v)parts.push(v)});
     if(t.pos)parts.push("X "+t.pos.x+" / Y "+t.pos.y)}
-  return parts.join(" · ")}
+  return parts.join(" | ")}
 function buildXML(a,opts){
   const off=+a.videoOffset||0,gNow=clockMs(a.clock.general)/1000;
   const tags=a.tags.slice();
   for(const [bid,o] of Object.entries(a.openToggles||{})){const b=a.buttons.find(x=>x.id===bid);if(b)tags.push({btn:bid,code:b.name,start:o.start,end:Math.max(gNow,o.start+0.1),session:o.session,st:o.st,athletes:o.athletes||[],note:"(aberto ao exportar)"})}
-  const inst=tags.map(t=>({start:t.start,end:t.end,code:t.code,text:freeText(t,t.code,opts)}));
+  const inst=tags.map(t=>({start:t.start,end:t.end,code:t.code,text:freeText(t,t.code,opts),labels:tagAthLabels(t)}));
   if(opts.sessions&&!W(a).single)a.sessions.forEach(s=>inst.push({start:s.start,end:s.end==null?gNow:s.end,code:W(a).N,text:s.name}));
   inst.sort((x,y)=>x.start-y.start);
   const I="    ",lines=["<file>",I+"<ALL_INSTANCES>"];
@@ -1139,6 +1140,7 @@ function buildXML(a,opts){
     lines.push(I+I+I+"<end>"+r2(Math.max(0,it.end+off))+"</end>");
     lines.push(I+I+I+"<code>"+xe(it.code)+"</code>");
     if(it.text)lines.push(I+I+I+"<free_text>"+xe(it.text)+"</free_text>");
+    (it.labels||[]).forEach(l=>{lines.push(I+I+I+"<label>");lines.push(I+I+I+I+"<group>Atleta</group>");lines.push(I+I+I+I+"<text>"+xe(l)+"</text>");lines.push(I+I+I+"</label>")});
     lines.push(I+I+"</instance>");
   });
   lines.push(I+"</ALL_INSTANCES>");
@@ -1164,7 +1166,7 @@ function openExport(){
       <h2 id="ex-h">Gerar XML</h2>
       <p class="muted" style="margin:0">Formato Nacsport (ID, start, end, code e free_text com a nota), com tempos em segundos contados a partir do ${W(a).single?"início da sessão":"início do primeiro período"}. ${a.tags.length} tags${nOpen?`, mais ${nOpen} botão liga/desliga ainda aberto (entra fechado no tempo atual)`:""}.</p>
       <div style="display:flex;flex-wrap:wrap;gap:16px">
-        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ex-meta" ${opts.details?"checked":""}> Atleta, qualificação e rótulos no texto livre</label>
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ex-meta" ${opts.details?"checked":""}> Qualificação e rótulos no texto livre</label>
         ${W(a).single?"":`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ex-ses" ${opts.sessions?"checked":""}> Incluir ${W(a).n}s como instâncias</label>`}
       </div>
       <pre class="xml" id="ex-pre">${esc(xml)}</pre>
