@@ -297,7 +297,7 @@ const LS_KEY="dimastag.v1";
 
 /* ---------------- defaults ---------------- */
 const KEY_GROUP="Comportamentos-chave";
-const GROUPS=["Comportamentos-chave","Conceitos"];
+const GROUPS=["Comportamentos-chave","Conceitos","Nenhum"];
 /* Single fixed "Ação" button shown above the groups: a generic action tag (athlete → qualification / pitch). */
 const ACTION_BTN={id:"acao",name:"Ação",color:"#d4d4d8",key:"",mode:"instant",lead:5,lag:5,ask:true,group:"Ação"};
 const btnOf=(a,id)=>id===ACTION_BTN.id?ACTION_BTN:a.buttons.find(x=>x.id===id);
@@ -740,7 +740,7 @@ function renderPad(){
   const dbtn=b=>`<button class="tagbtn desc" type="button" data-tag="${b.id}" style="--dc:${esc(b.color)}"><span class="name">${esc(b.name)}</span><span class="m">descritor</span></button>`;
   const used=GROUPS.filter(g=>cats.some(b=>grp(b)===g));
   $("#pad").innerHTML=`<div class="padgrp action-row"><div class="pad-inner">${btn(ACTION_BTN).replace('class="tagbtn ','class="tagbtn action ')}</div></div>`+(a.buttons.length
-    ?used.map(g=>`<div class="padgrp"><div class="eyebrow">${esc(g)}</div><div class="pad-inner">${cats.filter(b=>grp(b)===g).map(btn).join("")}</div></div>`).join("")+(descs.length?`<div class="padgrp"><div class="eyebrow">Descritores <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">· entram na última tag</span></div><div class="pad-inner">${descs.map(dbtn).join("")}</div></div>`:"")
+    ?used.map(g=>`<div class="padgrp">${g==="Nenhum"?"":`<div class="eyebrow">${esc(g)}</div>`}<div class="pad-inner">${cats.filter(b=>grp(b)===g).map(btn).join("")}</div></div>`).join("")+(descs.length?`<div class="padgrp"><div class="eyebrow">Descritores <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">· entram na última tag</span></div><div class="pad-inner">${descs.map(dbtn).join("")}</div></div>`:"")
     :`<div class="empty">Nenhum botão. Use “Editar botões”.</div>`);
   $$("[data-tag]").forEach(el=>el.onclick=()=>fireTag(el.dataset.tag));
 }
