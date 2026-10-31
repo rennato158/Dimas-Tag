@@ -1094,9 +1094,7 @@ document.addEventListener("keydown",e=>{
   if(e.ctrlKey||e.metaKey||e.altKey)return;
   const tg=e.target;if(tg&&(tg.tagName==="INPUT"||tg.tagName==="TEXTAREA"||tg.tagName==="SELECT"))return;
   const k=e.key.toLowerCase();
-  const b=cur.buttons.find(x=>x.key&&x.key.toLowerCase()===k);
-  if(b){e.preventDefault();fireTag(b.id)}
-  else if(k==="0"){e.preventDefault();fireSync()}
+  if(k==="0"){e.preventDefault();fireSync()}
 });
 
 /* ---------------- button editor ---------------- */
@@ -1105,8 +1103,8 @@ function openButtonEditor(opts){
   const draw=()=>{
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="be-h">
       <h2 id="be-h">${draft?"Criar protocolo":"Botões de tag"}</h2>
-      <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. Tecla é opcional (uma letra ou número). “Atleta?” define se o botão pergunta atleta e avaliação depois do clique. Botão de <b>categoria</b> cria a tag; <b>descritor</b> funciona como rótulo e só vale depois de uma categoria (entra na última tag marcada).</p>
-      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Tecla</th><th>Atleta?</th><th></th></tr></thead><tbody>
+      <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. “Atleta?” define se o botão pergunta atleta e avaliação depois do clique. Botão de <b>categoria</b> cria a tag; <b>descritor</b> funciona como rótulo e só vale depois de uma categoria (entra na última tag marcada).</p>
+      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Atleta?</th><th></th></tr></thead><tbody>
       ${rows.map((b,i)=>`<tr>
         <td><input type="color" id="be-c-${b.id}" data-i="${i}" data-f="color" value="${esc(b.color)}"></td>
         <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
@@ -1115,7 +1113,6 @@ function openButtonEditor(opts){
         <td><select id="be-m-${b.id}" data-i="${i}" data-f="mode" ${b.kind==="descritor"?"disabled":""}><option value="instant" ${b.mode==="instant"?"selected":""}>Instantâneo</option><option value="toggle" ${b.mode==="toggle"?"selected":""}>Liga/desliga</option></select></td>
         <td><input class="n" type="number" min="0" id="be-l-${b.id}" data-i="${i}" data-f="lead" value="${b.lead}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
         <td><input class="n" type="number" min="0" id="be-g-${b.id}" data-i="${i}" data-f="lag" value="${b.lag}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
-        <td><input class="key" type="text" maxlength="1" id="be-k-${b.id}" data-i="${i}" data-f="key" value="${esc(b.key||"")}"></td>
         <td style="text-align:center"><input type="checkbox" id="be-a-${b.id}" data-i="${i}" data-f="ask" ${b.ask===false?"":"checked"} ${b.kind==="descritor"?"disabled":""} aria-label="Perguntar atleta e avaliação"></td>
         <td style="white-space:nowrap"><button class="btn sm ghost" type="button" data-up="${i}" aria-label="Subir">↑</button><button class="btn sm ghost danger" type="button" data-x="${i}" aria-label="Remover">✕</button></td>
       </tr>`).join("")}
@@ -1176,7 +1173,7 @@ function openButtonEditor(opts){
     $("#be-cancel").onclick=()=>{closeOv();if(draft&&opts.after)opts.after()};
     if(draft){$("#be-psave").onclick=()=>{$("#pr-save").click();if(a.protocol){closeOv();opts.after&&opts.after()}};const ap=$("#pr-apply");if(ap)ap.hidden=true;return}
     $("#be-save").onclick=()=>{
-      const keys={};for(const r of rows){if(r.key){const k=r.key.toLowerCase();if(keys[k])return toast(`Tecla "${k.toUpperCase()}" repetida`);keys[k]=1}}
+      
       a.buttons=rows.filter(r=>r.name.trim());for(const id of Object.keys(a.openToggles))if(!a.buttons.find(b=>b.id===id))delete a.openToggles[id];
       const pr=protocols().find(p=>p.id===a.protocol);if(pr&&JSON.stringify(cleanBtns(a.buttons))!==JSON.stringify(cleanBtns(pr.buttons)))a.protocol=null;
       saveA();closeOv();renderPad();renderLog();refreshProtoSel(a);toast("Botões salvos")};
