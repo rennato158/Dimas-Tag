@@ -756,6 +756,7 @@ function fireTag(bid){
   /* Key behaviours are team-level: no athlete, straight to Reforço/Ajuste (+ campograma when the protocol's Descritor gráfico is on). */
   if(b.id===ACTION_BTN.id){quickPick(b,tag,{scope:true});return}
   if(grp(b)===KEY_GROUP){quickPick(b,tag,{ratingOnly:true});return}
+  if(a.type==="jogo"){quickPick(b,tag,{jogo:true});return}
   if(b.ask!==false&&!roster().length&&usePitch(a)){quickPick(b,tag,{pitchOnly:true});return}
   if(b.ask===false||!roster().length){if(activationDescs(a,b).length){quickPick(b,tag,{descOnly:true});return}addTag(tag);toast(b.name+" · "+fmtS(t));return}
   quickPick(b,tag);
@@ -812,7 +813,7 @@ function quickPick(b,tag,opts){
   opts=opts||{};
   const r=groupedRoster().flatMap(g=>g.players),KEYS="123456789qwertyuiopasdfghjklzxcvbnm";
   const box=$("#ovroot2");
-  const actD=activationDescs(cur,b);let dAsked=false;
+  const actD=activationDescs(cur,b);let dAsked=false,chain=null;
   const stepDesc=()=>{dAsked=true;tag.desc=tag.desc||[];
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Descritores" style="width:min(560px,100%)">
       ${head("descritores")}
@@ -823,9 +824,9 @@ function quickPick(b,tag,opts){
     box.onkeydown=e=>{if(e.key==="Escape"){tag.desc=[];done()}else return;e.preventDefault()};
     box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
   };
-  const done=()=>{if(actD.length&&!dAsked){stepDesc();return}if(tag.desc&&!tag.desc.length)delete tag.desc;box.innerHTML="";addTag(tag);toast(tag.code+(tag.scope?" · "+tag.scope:"")+(tag.rating?" · "+tag.rating:"")+(tag.pos?` · ${tag.pos.x},${tag.pos.y}`:"")+" · "+fmtS(tag.t))};
+  const done=()=>{if(chain&&chain.length){chain.shift()();return}if(actD.length&&!dAsked){stepDesc();return}if(tag.desc&&!tag.desc.length)delete tag.desc;box.innerHTML="";addTag(tag);toast(tag.code+(tag.scope?" · "+tag.scope:"")+(tag.rating?" · "+tag.rating:"")+(tag.pos?` · ${tag.pos.x},${tag.pos.y}`:"")+" · "+fmtS(tag.t))};
   /* Ação ends with an optional note; every other button saves straight away. */
-  const finish=()=>opts.scope?stepNote():done();
+  const finish=()=>chain?done():opts.scope?stepNote():done();
   const stepNote=()=>{
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Nota" style="width:min(520px,100%)">
       ${head("nota")}
@@ -838,7 +839,7 @@ function quickPick(b,tag,opts){
     box.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){save()}else if(e.key==="Escape"){done()}else return;e.preventDefault()};
     ta.focus();
   };
-  const lbl=(n,txt)=>opts.scope?txt:n+" · "+txt;
+  const lbl=(n,txt)=>opts.scope||opts.jogo?txt:n+" · "+txt;
   const head=step=>`<div class="qp-h"><div style="display:flex;align-items:center;gap:8px"><span class="tagname" style="background:${esc(b.color)};color:${textOn(b.color)}">${esc(b.name)}</span><span class="num muted">${fmtS(tag.t)}</span>${tag.athletes.length?`<span class="pill">${esc(tagAthLabels(tag)[0])}</span>`:""}</div><span class="muted" style="font-size:12px">${step}</span></div>`;
   const stepPitch=()=>{
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Posição no campo" style="width:min(640px,100%)">
@@ -852,7 +853,7 @@ function quickPick(b,tag,opts){
     box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
   };
   const wantPitch=usePitch(cur),afterRating=()=>wantPitch?stepPitch():finish();
-  const step2=()=>cur.type==="jogo"?(wantPitch?stepPitch():finish()):stepRating();
+  const step2=()=>chain?done():cur.type==="jogo"?(wantPitch?stepPitch():finish()):stepRating();
   const stepRating=()=>{
     box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Avaliação" style="width:min(420px,100%)">
       ${head(opts.ratingOnly?"qualificação":lbl(usePitch(cur)?"2 de 3":"2 de 2","qualificação"))}
@@ -886,6 +887,8 @@ function quickPick(b,tag,opts){
     box.onkeydown=e=>{if(e.key==="1")go("Coletivo");else if(e.key==="2")go("Individual");else if(e.key==="Escape"){box.innerHTML="";toast("Ação cancelada")}else return;e.preventDefault()};
     box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
   };
+  /* Jogo category buttons: Descritores → Posição no campo → Atleta */
+  if(opts.jogo){chain=[];if(actD.length)chain.push(stepDesc);if(usePitch(cur))chain.push(stepPitch);if(r.length&&b.ask!==false)chain.push(stepAthlete);done();return}
   if(opts.descOnly){stepDesc();return}
   if(opts.pitchOnly){stepPitch();return}
   if(opts.ratingOnly){stepRating();return}
