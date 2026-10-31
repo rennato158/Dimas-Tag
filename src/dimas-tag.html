@@ -137,6 +137,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tagbtn .name{overflow-wrap:break-word;hyphens:auto;font-size:18px}
 .tagbtn.desc{background:var(--surface);color:var(--fg);border:2px dashed var(--dc);min-height:56px;box-shadow:none}
 .tagbtn.desc .m{color:var(--muted)}
+.dsel{display:flex;flex-wrap:wrap;gap:10px}
+.dchip{border:2px dashed var(--dc);background:var(--surface);color:var(--fg);border-radius:10px;padding:14px 18px;font:600 16px var(--f-body,inherit);cursor:pointer;min-height:52px}
+.dchip[aria-pressed="true"]{background:var(--dc);color:#111;border-style:solid}
 .dpill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;border:1px dashed var(--muted);margin:2px 3px 0 0;font-family:var(--f-body,inherit)}
 .hint{font-size:13px;color:var(--muted);margin-top:8px}
 details.data{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
@@ -710,7 +713,7 @@ function renderPad(){
       <span class="name">${esc(b.name)}</span>
       <span class="m" ${open?`data-live="${b.id}"`:""}>${open?"gravando…":(b.mode==="toggle"?"liga / desliga":`−${b.lead}s / +${b.lag}s`)}</span>
     </button>`};
-  const isD=b=>b.kind==="descritor",cats=a.buttons.filter(b=>!isD(b)),descs=a.buttons.filter(isD);
+  const isD=b=>b.kind==="descritor",cats=a.buttons.filter(b=>!isD(b)),descs=a.buttons.filter(b=>isD(b)&&!String(b.dshow||"grupo").startsWith("on:"));
   const dbtn=b=>`<button class="tagbtn desc" type="button" data-tag="${b.id}" style="--dc:${esc(b.color)}"><span class="name">${esc(b.name)}</span><span class="m">descritor</span></button>`;
   const used=GROUPS.filter(g=>cats.some(b=>grp(b)===g));
   $("#pad").innerHTML=`<div class="padgrp action-row"><div class="pad-inner">${btn(ACTION_BTN).replace('class="tagbtn ','class="tagbtn action ')}</div></div>`+(a.buttons.length
@@ -718,6 +721,7 @@ function renderPad(){
     :`<div class="empty">Nenhum botão. Use “Editar botões”.</div>`);
   $$("[data-tag]").forEach(el=>el.onclick=()=>fireTag(el.dataset.tag));
 }
+function activationDescs(a,b){if(!b||b.kind==="descritor")return [];return a.buttons.filter(d=>d.kind==="descritor"&&String(d.dshow||"").startsWith("on:")&&(d.dshow==="on:"||d.dshow==="on:"+b.name))}
 function applyDescriptor(a,b){
   const el=$(`[data-tag="${b.id}"]`);if(el){el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),140)}
   const last=a.tags.filter(t=>!t.sync).sort((x,y)=>(y.createdAt||0)-(x.createdAt||0))[0];
@@ -747,7 +751,7 @@ function fireTag(bid){
   if(b.id===ACTION_BTN.id){quickPick(b,tag,{scope:true});return}
   if(grp(b)===KEY_GROUP){quickPick(b,tag,{ratingOnly:true});return}
   if(b.ask!==false&&!roster().length&&usePitch(a)){quickPick(b,tag,{pitchOnly:true});return}
-  if(b.ask===false||!roster().length){addTag(tag);toast(b.name+" · "+fmtS(t));return}
+  if(b.ask===false||!roster().length){if(activationDescs(a,b).length){quickPick(b,tag,{descOnly:true});return}addTag(tag);toast(b.name+" · "+fmtS(t));return}
   quickPick(b,tag);
 }
 /* Sync mark: the referee's first whistle, used to align the XML with the video. Never asks for athlete or rating. */
@@ -802,7 +806,18 @@ function quickPick(b,tag,opts){
   opts=opts||{};
   const r=groupedRoster().flatMap(g=>g.players),KEYS="123456789qwertyuiopasdfghjklzxcvbnm";
   const box=$("#ovroot2");
-  const done=()=>{box.innerHTML="";addTag(tag);toast(tag.code+(tag.scope?" · "+tag.scope:"")+(tag.rating?" · "+tag.rating:"")+(tag.pos?` · ${tag.pos.x},${tag.pos.y}`:"")+" · "+fmtS(tag.t))};
+  const actD=activationDescs(cur,b);let dAsked=false;
+  const stepDesc=()=>{dAsked=true;tag.desc=tag.desc||[];
+    box.innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="Descritores" style="width:min(560px,100%)">
+      ${head("descritores")}
+      <div class="dsel">${actD.map(d=>`<button type="button" class="dchip" data-d="${esc(d.name)}" aria-pressed="${tag.desc.includes(d.name)}" style="--dc:${esc(d.color)}">${esc(d.name)}</button>`).join("")}</div>
+      <div class="foot"><button class="btn sm ghost" type="button" id="qp-skip">Sem descritor</button><button class="btn primary" type="button" id="qd-ok">Concluir</button></div></div></div>`;
+    $$("[data-d]",box).forEach(el=>el.onclick=()=>{const n=el.dataset.d,i=tag.desc.indexOf(n);if(i>=0)tag.desc.splice(i,1);else tag.desc.push(n);el.setAttribute("aria-pressed",i<0)});
+    $("#qp-skip").onclick=()=>{tag.desc=[];done()};$("#qd-ok").onclick=done;
+    box.onkeydown=e=>{if(e.key==="Enter")done();else if(e.key==="Escape"){tag.desc=[];done()}else return;e.preventDefault()};
+    box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
+  };
+  const done=()=>{if(actD.length&&!dAsked){stepDesc();return}if(tag.desc&&!tag.desc.length)delete tag.desc;box.innerHTML="";addTag(tag);toast(tag.code+(tag.scope?" · "+tag.scope:"")+(tag.rating?" · "+tag.rating:"")+(tag.pos?` · ${tag.pos.x},${tag.pos.y}`:"")+" · "+fmtS(tag.t))};
   /* Ação ends with an optional note; every other button saves straight away. */
   const finish=()=>opts.scope?stepNote():done();
   const stepNote=()=>{
@@ -865,6 +880,7 @@ function quickPick(b,tag,opts){
     box.onkeydown=e=>{if(e.key==="1")go("Coletivo");else if(e.key==="2")go("Individual");else if(e.key==="Escape"){box.innerHTML="";toast("Ação cancelada")}else return;e.preventDefault()};
     box.querySelector(".modal").tabIndex=-1;box.querySelector(".modal").focus();
   };
+  if(opts.descOnly){stepDesc();return}
   if(opts.pitchOnly){stepPitch();return}
   if(opts.ratingOnly){stepRating();return}
   if(opts.scope){stepScope();return}
@@ -1103,13 +1119,13 @@ function openButtonEditor(opts){
   const draw=()=>{
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="be-h">
       <h2 id="be-h">${draft?"Criar protocolo":"Botões de tag"}</h2>
-      <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. “Atleta?” define se o botão pergunta atleta e avaliação depois do clique. Botão de <b>categoria</b> cria a tag; <b>descritor</b> funciona como rótulo e só vale depois de uma categoria (entra na última tag marcada).</p>
-      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Atleta?</th><th></th></tr></thead><tbody>
+      <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. “Atleta?” define se o botão pergunta atleta e avaliação depois do clique. Botão de <b>categoria</b> cria a tag; <b>descritor</b> funciona como rótulo e só vale depois de uma categoria (em grupo no painel entra na última tag marcada; “ao ativar” aparece logo depois de tocar a categoria).</p>
+      <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo / exibição</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Atleta?</th><th></th></tr></thead><tbody>
       ${rows.map((b,i)=>`<tr>
         <td><input type="color" id="be-c-${b.id}" data-i="${i}" data-f="color" value="${esc(b.color)}"></td>
         <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
         <td><select id="be-k2-${b.id}" data-i="${i}" data-f="kind" aria-label="Função"><option value="categoria" ${b.kind==="descritor"?"":"selected"}>Categoria</option><option value="descritor" ${b.kind==="descritor"?"selected":""}>Descritor</option></select></td>
-        <td><select id="be-gr-${b.id}" data-i="${i}" data-f="group" ${b.kind==="descritor"?"disabled":""}>${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select></td>
+        <td>${b.kind==="descritor"?`<select id="be-ds-${b.id}" data-i="${i}" data-f="dshow" aria-label="Exibição do descritor">${[["grupo","Grupo no painel"],["on:","Ao ativar: qualquer categoria"],...rows.filter(x=>x.kind!=="descritor"&&String(x.name).trim()).map(x=>["on:"+x.name,"Ao ativar: "+x.name])].map(([v,l])=>`<option value="${esc(v)}" ${(b.dshow||"grupo")===v?"selected":""}>${esc(l)}</option>`).join("")}</select>`:`<select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select>`}</td>
         <td><select id="be-m-${b.id}" data-i="${i}" data-f="mode" ${b.kind==="descritor"?"disabled":""}><option value="instant" ${b.mode==="instant"?"selected":""}>Instantâneo</option><option value="toggle" ${b.mode==="toggle"?"selected":""}>Liga/desliga</option></select></td>
         <td><input class="n" type="number" min="0" id="be-l-${b.id}" data-i="${i}" data-f="lead" value="${b.lead}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
         <td><input class="n" type="number" min="0" id="be-g-${b.id}" data-i="${i}" data-f="lag" value="${b.lag}" ${b.mode==="toggle"||b.kind==="descritor"?"disabled":""}></td>
@@ -1187,7 +1203,7 @@ function protoSelHTML(a){const list=protocols().filter(p=>(p.type||a.type)===a.t
 function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
 function refreshProtoSel(a){const el=$("#protosel");if(!el)return;el.outerHTML=protoSelHTML(a);wireProtoSel(a)}
 function protocols(){if(!store.config.protocols){try{store.config.protocols=[]}catch(e){store.config=Object.assign({},store.config,{protocols:[]})}}return store.config.protocols}
-const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria"}));
+const cleanBtns=rows=>rows.filter(r=>String(r.name).trim()).map(r=>({name:String(r.name).trim(),color:r.color,key:r.key||"",mode:r.mode||"instant",lead:+r.lead||0,lag:+r.lag||0,group:grp(r),ask:r.ask!==false,kind:r.kind==="descritor"?"descritor":"categoria",...(r.kind==="descritor"?{dshow:r.dshow||"grupo"}:{})}));
 /* apply a button set to an analysis, keeping ids of same-named buttons so old tags keep their colors */
 const usePitch=a=>a&&a.pitch!==undefined?!!a.pitch:!!(a&&a.type==="jogo");
 function applyButtons(a,btns){const old=a.buttons||[];btns=btns.filter(b=>GROUPS.includes(b.group));a.buttons=btns.map(b=>{const ex=old.find(o=>o.name===b.name);return Object.assign({},b,{id:ex?ex.id:newId()})});
