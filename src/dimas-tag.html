@@ -507,6 +507,7 @@ function renderHome(){
           </div>`:""}
           ${protocols().some(p=>(p.type||newType)===newType)?`<label class="f"><span>Protocolo de botões</span><select id="nf-proto"><option value="">Padrão de ${newType}</option>${protocols().filter(p=>(p.type||newType)===newType).map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.buttons.length} botões</option>`).join("")}</select></label>`:""}
           <button class="btn primary" type="submit">Criar análise</button>
+          <button class="btn" type="button" id="nf-newproto">+ Criar protocolo de ${newType}</button>
           
         </form>
       </section>
@@ -527,6 +528,7 @@ function renderHome(){
   </div>`;
   $$(".seg button").forEach(b=>b.onclick=()=>{newType=b.dataset.type;const t=$("#nf-title").value,c=$("#nf-cat").value,d=$("#nf-date").value;renderHome();$("#nf-title").value=t;$("#nf-cat").value=c;$("#nf-date").value=d});
   $("#roster").onclick=()=>openRoster(renderHome);wireTheme();if($("#syncacct")){$("#syncacct").onclick=openSync;renderSyncState()}
+  $("#nf-newproto").onclick=()=>{const d=newAnalysis(newType,"Protocolo");d.protocol=null;openButtonEditor({draft:d,after:renderHome})};
   $("#newform").onsubmit=e=>{e.preventDefault();
     const a=newAnalysis(newType,$("#nf-title").value.trim(),Object.assign({data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()},newType==="jogo"?{competicao:($("#nf-comp")||{value:""}).value.trim(),rodada:($("#nf-rod")||{value:""}).value.trim()}:{}));
     const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id}}
@@ -1069,11 +1071,11 @@ document.addEventListener("keydown",e=>{
 });
 
 /* ---------------- button editor ---------------- */
-function openButtonEditor(){
-  const a=cur;let rows=a.buttons.map(b=>Object.assign({},b));
+function openButtonEditor(opts){
+  opts=opts||{};const draft=!!opts.draft,a=draft?opts.draft:cur,saveA=()=>{if(!draft)saveA()};let rows=a.buttons.map(b=>Object.assign({},b));
   const draw=()=>{
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="be-h">
-      <h2 id="be-h">Botões de tag</h2>
+      <h2 id="be-h">${draft?"Criar protocolo":"Botões de tag"}</h2>
       <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. Tecla é opcional (uma letra ou número). “Atleta?” define se o botão pergunta atleta e avaliação depois do clique.</p>
       <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Grupo</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Tecla</th><th>Atleta?</th><th></th></tr></thead><tbody>
       ${rows.map((b,i)=>`<tr>
@@ -1104,11 +1106,11 @@ function openButtonEditor(){
         </div>
         <div id="pr-apply-box" hidden></div>
       </div>
-      <div class="foot">
+      ${draft?`<div class="foot"><button class="btn" type="button" id="be-cancel">Fechar</button><button class="btn primary" type="button" id="be-psave">Salvar protocolo</button></div>`:`<div class="foot">
         <button class="btn" type="button" id="be-def">Usar como padrão para novos ${a.type}s</button>
         <button class="btn" type="button" id="be-cancel">Cancelar</button>
         <button class="btn primary" type="button" id="be-save">Salvar botões</button>
-      </div></div></div>`;
+      </div>`}</div></div>`;
     $$("#ovroot [data-f]").forEach(el=>el.oninput=el.onchange=()=>{const r=rows[+el.dataset.i],f=el.dataset.f;
       r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode")draw()});
     $$("#ovroot [data-x]").forEach(el=>el.onclick=()=>{rows.splice(+el.dataset.x,1);draw()});
@@ -1120,7 +1122,7 @@ function openButtonEditor(){
       const ex=protocols().find(p=>p.name.toLowerCase()===name.toLowerCase());
       const ptype=$("#pr-type").value||a.type;
       if(ex){ex.buttons=btns;ex.type=ptype;ex.updatedAt=Date.now();a.protocol=ex.id;toast("Protocolo atualizado: "+name)}else{const pr={id:"pr"+newId(),name,type:ptype,buttons:btns,createdAt:Date.now()};protocols().push(pr);a.protocol=pr.id;toast("Protocolo salvo: "+name)}
-      store.saveConfig();store.save(a);refreshProtoSel(a);draw()};
+      store.saveConfig();saveA();refreshProtoSel(a);draw()};
     $("#pr-load").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");rows=pr.buttons.filter(b=>GROUPS.includes(b.group)).map(b=>Object.assign({},b,{id:newId()}));a.protocol=pr.id;draw();toast("Protocolo carregado. Clique em Salvar botões.")};
     $("#pr-del").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");const box=$("#pr-apply-box");box.hidden=false;
       box.innerHTML=`<div class="confirm">Excluir o protocolo “${esc(pr.name)}”? As análises que o usam mantêm seus botões. <button class="btn sm danger" type="button" id="pr-del-yes">Excluir</button><button class="btn sm" type="button" id="pr-del-no">Cancelar</button></div>`;
@@ -1133,12 +1135,13 @@ function openButtonEditor(){
         <div class="confirm"><button class="btn sm primary" type="button" id="pr-apply-yes" ${list.length?"":"disabled"}>Aplicar</button><button class="btn sm" type="button" id="pr-apply-no">Cancelar</button></div></div>`;
       $("#pr-apply-yes").onclick=()=>{const ids=$$("#pr-apply-box input:checked").map(i=>i.value);let n=0;ids.forEach(id=>{const x=store.analyses[id];if(x){applyButtons(x,pr.buttons);x.protocol=pr.id;store.save(x);n++}});draw();toast(n+" análise(s) atualizada(s)")};
       $("#pr-apply-no").onclick=draw};
-    $("#be-cancel").onclick=closeOv;
+    $("#be-cancel").onclick=()=>{closeOv();if(draft&&opts.after)opts.after()};
+    if(draft){$("#be-psave").onclick=()=>{$("#pr-save").click();if(a.protocol){closeOv();opts.after&&opts.after()}};const ap=$("#pr-apply");if(ap)ap.hidden=true;return}
     $("#be-save").onclick=()=>{
       const keys={};for(const r of rows){if(r.key){const k=r.key.toLowerCase();if(keys[k])return toast(`Tecla "${k.toUpperCase()}" repetida`);keys[k]=1}}
       a.buttons=rows.filter(r=>r.name.trim());for(const id of Object.keys(a.openToggles))if(!a.buttons.find(b=>b.id===id))delete a.openToggles[id];
       const pr=protocols().find(p=>p.id===a.protocol);if(pr&&JSON.stringify(cleanBtns(a.buttons))!==JSON.stringify(cleanBtns(pr.buttons)))a.protocol=null;
-      store.save(a);closeOv();renderPad();renderLog();refreshProtoSel(a);toast("Botões salvos")};
+      saveA();closeOv();renderPad();renderLog();refreshProtoSel(a);toast("Botões salvos")};
     $("#be-def").onclick=()=>{store.config.defaults[a.type]=rows.filter(r=>r.name.trim()).map(r=>Object.assign({},r));store.saveConfig();toast("Padrão salvo para novos "+a.type+"s")};
   };
   draw();
