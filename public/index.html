@@ -161,6 +161,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 @media (max-width:1000px){.mv-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px}.mv-list table{font-size:12px}.mv-list td,.mv-list th{padding:7px 5px}.mv-list td .sw{margin-right:4px}}
 .mv-pitch .pitch{max-width:none;cursor:default}
 .mv-pitch [data-pm]{cursor:pointer}
+.mv-pitch svg{touch-action:none}.mv-pitch [data-pm]{cursor:grab}.mv-pitch .pm-drag{cursor:grabbing;opacity:.85}
 .mv-pitch .pm-sel{filter:drop-shadow(0 0 1.2px #fff) drop-shadow(0 0 2px #000)}
 .mv-pitch .pm-sel .mark,.mv-pitch .pm-sel .markx{transform-box:fill-box;transform-origin:center;transform:scale(1.6)}
 .mv-list{max-height:62vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
@@ -1297,7 +1298,7 @@ function openMapView(){
     const marks=list.map(t=>{const c=markCfg(a,btnOf(a,t.btn));return `<g data-pm="${t.id}" class="${sel===t.id?"pm-sel":""}">${markSVG(t.pos,c)}</g>`}).join("");
     const color=t=>(btnOf(a,t.btn)||{}).color||"#888";
     $("#ovroot").innerHTML=`<div class="ov"><div class="modal mapview" role="dialog" aria-modal="true" aria-labelledby="mv-h" style="width:min(1180px,100%)">
-      <div class="drawer-h" style="padding:0"><div><h2 id="mv-h">Campograma</h2><div class="muted" style="font-size:12.5px;margin-top:2px">${list.length} marcaç${list.length===1?"ão":"ões"} · X 0–${cfg.w}, Y 0–${cfg.h}</div></div>
+      <div class="drawer-h" style="padding:0"><div><h2 id="mv-h">Campograma</h2><div class="muted" style="font-size:12.5px;margin-top:2px">${list.length} marcaç${list.length===1?"ão":"ões"} · X 0–${cfg.w}, Y 0–${cfg.h} · arraste uma marcação para corrigir</div></div>
         <div style="display:flex;gap:8px;align-items:center"><select id="mv-f" aria-label="Filtrar categoria" style="width:auto"><option value="">Todas as categorias</option>${cats.map(c=>`<option ${filt===c?"selected":""}>${esc(c)}</option>`).join("")}</select><button class="btn sm" type="button" id="mv-close">Fechar</button></div></div>
       <div class="mv-grid">
         <div class="mv-pitch">${pitchSVG(null,cfg).replace('<g class="markg"></g>','<g class="markg">'+marks+'</g>')}</div>
@@ -1306,7 +1307,28 @@ function openMapView(){
     $("#mv-close").onclick=closeOv;
     $("#mv-f").onchange=e=>{filt=e.target.value;sel=null;draw()};
     $$("[data-pr]").forEach(el=>el.onclick=()=>{sel=sel===el.dataset.pr?null:el.dataset.pr;draw()});
-    $$("#ovroot [data-pm]").forEach(el=>el.onclick=e=>{e.stopPropagation();sel=sel===el.dataset.pm?null:el.dataset.pm;draw();const r=$(`[data-pr="${sel}"]`);if(r)r.scrollIntoView({block:"nearest"})});
+    /* drag a mark to correct its position; a tap without movement still selects it */
+    const svg=$("#ovroot .mv-pitch svg");
+    $$("#ovroot [data-pm]").forEach(el=>el.onpointerdown=e=>{
+      e.preventDefault();e.stopPropagation();
+      const t=a.tags.find(x=>x.id===el.dataset.pm);if(!t)return;
+      const bak=Object.assign({},t.pos),sx=e.clientX,sy=e.clientY,w=posW(t.pos),h=posH(t.pos),c=markCfg(a,btnOf(a,t.btn));let moved=false;
+      el.classList.add("pm-drag");try{el.setPointerCapture(e.pointerId)}catch(_){}
+      el.onpointermove=ev=>{
+        if(!moved&&Math.hypot(ev.clientX-sx,ev.clientY-sy)<4)return;moved=true;
+        const r=svg.getBoundingClientRect();
+        const vx=(ev.clientX-r.left)/r.width*109-2,vy=(ev.clientY-r.top)/r.height*72-2;
+        const x=Math.max(0,Math.min(100,vx/105*100)),y=Math.max(0,Math.min(100,vy/68*100));
+        t.pos={x:Math.round(x*w/10)/10,y:Math.round(y*h/10)/10,w,h};
+        el.innerHTML=markSVG(t.pos,c);
+        const cell=$(`#ovroot [data-pr="${t.id}"] td:last-child`);if(cell)cell.textContent=`${t.pos.x};${t.pos.y}`;
+      };
+      const end=ev=>{el.onpointermove=el.onpointerup=el.onpointercancel=null;el.classList.remove("pm-drag");
+        if(ev.type==="pointercancel"){t.pos=bak;draw();return}
+        if(moved){sel=t.id;store.save(a);renderLog();draw();toast(`${t.code} · posição ${t.pos.x};${t.pos.y}`);return}
+        sel=sel===t.id?null:t.id;draw();const rr=$(`[data-pr="${sel}"]`);if(rr)rr.scrollIntoView({block:"nearest"})};
+      el.onpointerup=end;el.onpointercancel=end;
+    });
   };
   draw();
 }
