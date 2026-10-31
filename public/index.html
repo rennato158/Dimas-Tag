@@ -156,6 +156,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tagbtn .name{overflow-wrap:break-word;hyphens:auto;font-size:18px}
 .tagbtn.desc{background:var(--surface);color:var(--fg);border:2px dashed var(--dc);min-height:56px;box-shadow:none}
 .tagbtn.desc .m{color:var(--muted)}
+.cpick{display:flex;gap:6px;align-items:center}
+.cpick .hex{width:84px;font-family:var(--f-mono);font-size:13px;text-transform:uppercase;padding:6px 8px}
+.cpick .hex.bad{border-color:var(--live);outline-color:var(--live)}
 .dlink{margin-top:6px;font-size:12.5px}
 .dlink summary{cursor:pointer;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlink-list{display:flex;flex-direction:column;gap:4px;padding:6px 0;max-height:200px;overflow:auto}
@@ -1164,7 +1167,7 @@ function openButtonEditor(opts){
       <p class="muted" style="margin:0">Recuo e avanço (em segundos) definem o clipe gerado por um botão instantâneo. “Atleta?” define se o botão pergunta atleta e avaliação depois do clique. Botão de <b>categoria</b> cria a tag; <b>descritor</b> funciona como rótulo e só vale depois de uma categoria (em grupo no painel entra na última tag marcada; “ao ativar” aparece logo depois de tocar a categoria).</p>
       <div class="btable"><table><thead><tr><th>Cor</th><th>Nome</th><th>Função</th><th>Grupo / exibição</th><th>Tipo</th><th>Recuo</th><th>Avanço</th><th>Atleta?</th><th></th></tr></thead><tbody>
       ${rows.map((b,i)=>`<tr>
-        <td><input type="color" id="be-c-${b.id}" data-i="${i}" data-f="color" value="${esc(b.color)}"></td>
+        <td><div class="cpick"><input type="color" id="be-c-${b.id}" data-i="${i}" data-f="color" value="${esc(b.color)}"><input type="text" class="hex" id="be-h-${b.id}" data-hex="${i}" value="${esc(String(b.color||"").replace("#","").toUpperCase())}" maxlength="7" aria-label="Cor em HEX" autocomplete="off" spellcheck="false"></div></td>
         <td><input type="text" id="be-n-${b.id}" data-i="${i}" data-f="name" value="${esc(b.name)}"></td>
         <td><select id="be-k2-${b.id}" data-i="${i}" data-f="kind" aria-label="Função"><option value="categoria" ${b.kind==="descritor"?"":"selected"}>Categoria</option><option value="descritor" ${b.kind==="descritor"?"selected":""}>Descritor</option></select></td>
         <td>${b.kind==="descritor"?`<select id="be-ds-${b.id}" data-i="${i}" data-f="dshow" aria-label="Exibição do descritor"><option value="grupo" ${isAct(b)?"":"selected"}>Grupo no painel</option><option value="on:" ${isAct(b)?"selected":""}>Ao ativar categoria</option></select>${isAct(b)?`<details class="dlink"><summary>${(b.dcats||[]).length?esc(b.dcats.join(", ")):"Qualquer categoria"}</summary><div class="dlink-list">${rows.filter(x=>x.kind!=="descritor"&&String(x.name).trim()).map(x=>`<label><input type="checkbox" data-dl="${i}" value="${esc(x.name)}" ${(b.dcats||[]).includes(x.name)?"checked":""}> ${esc(x.name)}</label>`).join("")}<div class="muted" style="font-size:11.5px">Nenhuma marcada = qualquer categoria</div></div></details>`:""}`:`<select id="be-gr-${b.id}" data-i="${i}" data-f="group">${GROUPS.map(g=>`<option value="${g}" ${grp(b)===g?"selected":""}>${g}</option>`).join("")}</select>`}</td>
@@ -1202,6 +1205,10 @@ function openButtonEditor(opts){
       r[f]=f==="ask"?el.checked:(f==="lead"||f==="lag")?Math.max(0,parseFloat(el.value)||0):el.value;if(f==="mode"||f==="kind"||f==="dshow")draw()});
     $$("#ovroot [data-x]").forEach(el=>el.onclick=()=>{rows.splice(+el.dataset.x,1);draw()});
 
+    $$("#ovroot [data-hex]").forEach(el=>el.oninput=()=>{const v=el.value.trim().replace(/^#/,"");const i=+el.dataset.hex;
+      const full=/^[0-9a-f]{3}$/i.test(v)?v.split("").map(c=>c+c).join(""):v;
+      if(/^[0-9a-f]{6}$/i.test(full)){rows[i].color="#"+full.toLowerCase();const c=el.parentNode.querySelector("input[type=color]");if(c)c.value=rows[i].color;el.classList.remove("bad")}else el.classList.add("bad")});
+    $$("#ovroot input[type=color][data-f=color]").forEach(el=>el.addEventListener("input",()=>{const h=el.parentNode.querySelector(".hex");if(h){h.value=el.value.replace("#","").toUpperCase();h.classList.remove("bad")}}));
     $$("#ovroot [data-dl]").forEach(el=>el.onchange=()=>{const r=rows[+el.dataset.dl];r.dcats=$$(`#ovroot [data-dl="${el.dataset.dl}"]:checked`).map(c=>c.value);const sm=el.closest("details").querySelector("summary");sm.textContent=r.dcats.length?r.dcats.join(", "):"Qualquer categoria"});
     $$("#ovroot [data-up]").forEach(el=>el.onclick=()=>{const i=+el.dataset.up;if(i>0){[rows[i-1],rows[i]]=[rows[i],rows[i-1]];draw()}});
     $("#be-add").onclick=()=>{rows.push(B("Novo tag","#a5b4fc","",undefined,5,5,"Conceitos"));draw();const ins=$$("#ovroot [data-f=name]");ins[ins.length-1].focus()};
