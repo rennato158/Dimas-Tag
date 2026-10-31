@@ -580,11 +580,11 @@ function renderAnalysis(){
   const a=cur;
   $("#app").innerHTML=`
   <div class="topbar"><div class="wrap">
-    <button class="btn sm" id="back" type="button">← Análises</button>
     <span class="tbrand">DIMAS <span class="hub">TAG</span></span>
     <span class="typebadge ${a.type}">${a.type}</span>
     <h1 title="${esc(a.title)}">${esc(a.title)}</h1>
     <span class="savestate" id="savestate">${esc(store.status||"")}</span>
+    <button class="btn" id="back" type="button">← Análises</button>
     <button class="btn" id="opentags" type="button" aria-controls="tagsdrawer" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.4 11.6 12.4 2.6A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7c0 .5.2 1 .6 1.4l9 9a2 2 0 0 0 2.8 0l7-7a2 2 0 0 0 0-2.8ZM7 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg> Tags</button>
     <button class="btn primary" id="export" type="button">Finalizar e gerar XML</button>
     ${themeBtn()}
