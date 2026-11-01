@@ -169,6 +169,13 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .dlink summary{cursor:pointer;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlink-list{display:flex;flex-direction:column;gap:4px;padding:6px 0;max-height:200px;overflow:auto}
 .dlink-list label{display:flex;gap:6px;align-items:center;white-space:nowrap}
+.pl-list{display:flex;flex-direction:column;border:1px solid var(--line,rgba(127,127,127,.25));border-radius:12px;overflow:auto;max-height:calc(100vh - 220px)}
+.pl-row{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-top:1px solid var(--line,rgba(127,127,127,.25))}.pl-row:first-child{border-top:0}
+.pl-row .typebadge{margin-top:3px;min-width:56px;text-align:center}
+.pl-main{flex:1;min-width:0}.pl-name{font-weight:700;font-size:16px}.pl-meta{font-size:12.5px;margin-top:2px}
+.pl-sw{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.pl-chip{font-size:11.5px;padding:2px 8px;border-radius:99px;border-left:4px solid var(--c);background:var(--surface-2,rgba(127,127,127,.12))}
+.pl-act{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:700px){.pl-row{flex-wrap:wrap}.pl-act{width:100%;justify-content:flex-start}}
 .dsel{display:flex;flex-wrap:wrap;gap:10px}
 .dsec-h{font:700 12px var(--f-body,inherit);letter-spacing:.08em;text-transform:uppercase;color:var(--muted,#888);margin:4px 0 -2px}
 input.dsec{margin-top:6px;width:100%;font-size:13px;padding:6px 8px}
@@ -535,7 +542,7 @@ function renderHome(){
       <div class="brand">
         <h1>DIMAS <span class="hub">Tag</span></h1>
       </div>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="savestate" id="savestate">${esc(fb.on?(store.status||"Sincronizado"):store.cloud?"Análises salvas na sua conta":"Análises salvas neste navegador")}</span><button class="btn" type="button" id="roster">Atletas (${roster().length})</button>${fb.ready?`<button class="btn" type="button" id="syncacct">☁ Entrar</button>`:""}${themeBtn()}</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="savestate" id="savestate">${esc(fb.on?(store.status||"Sincronizado"):store.cloud?"Análises salvas na sua conta":"Análises salvas neste navegador")}</span><button class="btn" type="button" id="protolist">Protocolos (${protocols().length})</button><button class="btn" type="button" id="roster">Atletas (${roster().length})</button>${fb.ready?`<button class="btn" type="button" id="syncacct">☁ Entrar</button>`:""}${themeBtn()}</div>
     </header>
     <div class="home-grid">
       <section class="panel">
@@ -576,7 +583,7 @@ function renderHome(){
     </div>
   </div>`;
   $$(".seg button").forEach(b=>b.onclick=()=>{newType=b.dataset.type;const t=$("#nf-title").value,c=$("#nf-cat").value,d=$("#nf-date").value;renderHome();$("#nf-title").value=t;$("#nf-cat").value=c;$("#nf-date").value=d});
-  $("#roster").onclick=()=>openRoster(renderHome);wireTheme();if($("#syncacct")){$("#syncacct").onclick=openSync;renderSyncState()}
+  $("#roster").onclick=()=>openRoster(renderHome);$("#protolist").onclick=()=>openProtoList(renderHome);wireTheme();if($("#syncacct")){$("#syncacct").onclick=openSync;renderSyncState()}
   $("#nf-newproto").onclick=()=>{const d=newAnalysis(newType,"Protocolo");d.protocol=null;openButtonEditor({draft:d,after:renderHome})};
   $("#newform").onsubmit=e=>{e.preventDefault();
     const a=newAnalysis(newType,$("#nf-title").value.trim(),Object.assign({data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()},newType==="jogo"?{competicao:($("#nf-comp")||{value:""}).value.trim(),rodada:($("#nf-rod")||{value:""}).value.trim()}:{}));
@@ -1275,20 +1282,9 @@ function openButtonEditor(opts){
     $("#pr-load").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");rows=pr.buttons.filter(b=>GROUPS.includes(b.group)).map(b=>Object.assign({},b,{id:newId()}));a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);draw();toast("Protocolo carregado. Clique em Salvar botões.")};
     $("#pr-export").onclick=()=>{const pr=selProto();const list=pr?[pr]:protocols();if(!list.length)return toast("Nenhum protocolo para exportar");
       const fname=(pr?"protocolo-"+fileSafe(pr.name):"protocolos-dimas-tag")+".json";
-      saveJSON(fname,{app:"DIMAS TAG",kind:"protocolos",version:1,exportedAt:new Date().toISOString(),protocols:list.map(x=>({name:x.name,type:x.type,pitch:x.pitch,pitchCfg:x.pitchCfg,buttons:cleanBtns(x.buttons)}))})};
-    $("#pr-import").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
-      let data;try{data=JSON.parse(await f.text())}catch(err){return toast("Arquivo inválido: escolha um protocolo .json")}
-      const list=(Array.isArray(data)?data:Array.isArray(data&&data.protocols)?data.protocols:data&&data.buttons?[data]:[]).filter(x=>x&&String(x.name||"").trim()&&Array.isArray(x.buttons)&&x.buttons.length);
-      if(!list.length)return toast("Nenhum protocolo encontrado no arquivo");
-      let added=0,upd=0,last=null;
-      list.forEach(x=>{const name=String(x.name).trim(),type=x.type==="treino"?"treino":x.type==="jogo"?"jogo":a.type;
-        const btns=cleanBtns(x.buttons.filter(b=>b&&String(b.name||"").trim()).map(b=>Object.assign({},b,{id:b.id||newId(),group:GROUPS.includes(b.group)?b.group:"Conceitos"})));
-        const pc=x.pitchCfg&&typeof x.pitchCfg==="object"?Object.assign({},x.pitchCfg):undefined;
-        const ex=protocols().find(q=>q.name.toLowerCase()===name.toLowerCase());
-        if(ex){ex.buttons=btns;ex.type=type;ex.pitch=x.pitch;ex.pitchCfg=pc;ex.updatedAt=Date.now();last=ex;upd++}
-        else{const pr={id:"pr"+newId(),name,type,pitch:x.pitch,pitchCfg:pc,buttons:btns,createdAt:Date.now()};protocols().push(pr);last=pr;added++}});
-      store.saveConfig();refreshProtoSel(a);draw();if(last)$("#pr-sel").value=last.id;
-      toast(`${added} protocolo(s) importado(s)${upd?`, ${upd} atualizado(s)`:""}. Use “Carregar aqui” para aplicar.`)};
+      exportProtocols(list,fname)};
+    $("#pr-import").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;const last=await importProtocolsFile(f,a.type);if(!last)return;
+      refreshProtoSel(a);draw();$("#pr-sel").value=last.id};
     $("#pr-del").onclick=()=>{const pr=selProto();if(!pr)return toast("Escolha um protocolo");const box=$("#pr-apply-box");box.hidden=false;
       box.innerHTML=`<div class="confirm">Excluir o protocolo “${esc(pr.name)}”? As análises que o usam mantêm seus botões. <button class="btn sm danger" type="button" id="pr-del-yes">Excluir</button><button class="btn sm" type="button" id="pr-del-no">Cancelar</button></div>`;
       $("#pr-del-yes").onclick=()=>{store.config.protocols=protocols().filter(p=>p.id!==pr.id);Object.values(store.analyses).forEach(x=>{if(x.protocol===pr.id)x.protocol=null});store.saveConfig();store.saveLocal();refreshProtoSel(a);draw();toast("Protocolo excluído")};
@@ -1312,6 +1308,54 @@ function openButtonEditor(opts){
   draw();
 }
 /* ---------------- protocols: named button sets, shared by all analyses ---------------- */
+async function importProtocolsFile(f,defType){
+      let data;try{data=JSON.parse(await f.text())}catch(err){{toast("Arquivo inválido: escolha um protocolo .json");return null}}
+      const list=(Array.isArray(data)?data:Array.isArray(data&&data.protocols)?data.protocols:data&&data.buttons?[data]:[]).filter(x=>x&&String(x.name||"").trim()&&Array.isArray(x.buttons)&&x.buttons.length);
+      if(!list.length){toast("Nenhum protocolo encontrado no arquivo");return null};
+      let added=0,upd=0,last=null;
+      list.forEach(x=>{const name=String(x.name).trim(),type=x.type==="treino"?"treino":x.type==="jogo"?"jogo":(defType||"jogo");
+        const btns=cleanBtns(x.buttons.filter(b=>b&&String(b.name||"").trim()).map(b=>Object.assign({},b,{id:b.id||newId(),group:GROUPS.includes(b.group)?b.group:"Conceitos"})));
+        const pc=x.pitchCfg&&typeof x.pitchCfg==="object"?Object.assign({},x.pitchCfg):undefined;
+        const ex=protocols().find(q=>q.name.toLowerCase()===name.toLowerCase());
+        if(ex){ex.buttons=btns;ex.type=type;ex.pitch=x.pitch;ex.pitchCfg=pc;ex.updatedAt=Date.now();last=ex;upd++}
+        else{const pr={id:"pr"+newId(),name,type,pitch:x.pitch,pitchCfg:pc,buttons:btns,createdAt:Date.now()};protocols().push(pr);last=pr;added++}});
+      store.saveConfig();
+      toast(`${added} protocolo(s) importado(s)${upd?`, ${upd} atualizado(s)`:""}.`);return last}
+function exportProtocols(list,fname){saveJSON(fname,{app:"DIMAS TAG",kind:"protocolos",version:1,exportedAt:new Date().toISOString(),protocols:list.map(x=>({name:x.name,type:x.type,pitch:x.pitch,pitchCfg:x.pitchCfg,buttons:cleanBtns(x.buttons)}))})}
+/* list of every saved protocol, flagged Jogo / Treino */
+function openProtoList(after){
+  let filt="",ask=null;
+  const draw=()=>{
+    const all=protocols().slice().sort((x,y)=>(x.type||"").localeCompare(y.type||"")||x.name.localeCompare(y.name,"pt"));
+    const list=all.filter(p=>!filt||(p.type||"jogo")===filt);
+    const uses=id=>Object.values(store.analyses).filter(x=>x.protocol===id).length;
+    const n=t=>all.filter(p=>(p.type||"jogo")===t).length;
+    const date=p=>{const d=p.updatedAt||p.createdAt;return d?new Date(d).toLocaleDateString("pt-BR"):"—"};
+    $("#ovroot").innerHTML=`<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="pl-h" style="width:min(900px,100%)">
+      <div class="drawer-h" style="padding:0"><div><h2 id="pl-h">Protocolos</h2><div class="muted" style="font-size:12.5px;margin-top:2px">${all.length} protocolo${all.length===1?"":"s"} · ${n("jogo")} de jogo · ${n("treino")} de treino</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="seg" role="group" aria-label="Filtrar tipo" style="grid-template-columns:repeat(3,auto)">${[["","Todos"],["jogo","Jogo"],["treino","Treino"]].map(([v,l])=>`<button type="button" data-pf="${v}" aria-pressed="${filt===v}">${l}</button>`).join("")}</div>
+        <label class="btn sm" for="pl-import">Importar</label><input type="file" id="pl-import" accept=".json,application/json" hidden><button class="btn sm" type="button" id="pl-close">Fechar</button></div></div>
+      ${list.length?`<div class="pl-list">${list.map(p=>{const cats=p.buttons.filter(b=>b.kind!=="descritor").length,ds=p.buttons.length-cats,u=uses(p.id);return `<div class="pl-row">
+        <span class="typebadge ${p.type==="treino"?"treino":"jogo"}">${p.type==="treino"?"Treino":"Jogo"}</span>
+        <div class="pl-main"><div class="pl-name">${esc(p.name)}</div><div class="muted pl-meta">${cats} categoria${cats===1?"":"s"}${ds?` · ${ds} descritor${ds===1?"":"es"}`:""}${p.pitch?" · campograma":""} · ${u?`usado em ${u} análise${u===1?"":"s"}`:"sem análises"} · ${date(p)}</div>
+          <div class="pl-sw">${p.buttons.filter(b=>b.kind!=="descritor").slice(0,12).map(b=>`<span class="pl-chip" style="--c:${esc(b.color||"#888")}">${esc(b.name)}</span>`).join("")}</div></div>
+        <div class="pl-act">${ask===p.id?`<span class="muted" style="font-size:13px">Excluir?</span><button class="btn sm danger" type="button" data-pdy="${p.id}">Excluir</button><button class="btn sm" type="button" data-pdn>Cancelar</button>`:`<button class="btn sm" type="button" data-pe="${p.id}">Editar</button><button class="btn sm" type="button" data-px="${p.id}">Exportar</button><button class="btn sm ghost danger" type="button" data-pd="${p.id}" aria-label="Excluir ${esc(p.name)}">✕</button>`}</div>
+      </div>`}).join("")}</div>`:`<div class="empty">${all.length?"Nenhum protocolo deste tipo.":"Nenhum protocolo criado ainda. Use “+ Criar protocolo” ou Importar."}</div>`}
+    </div></div>`;
+    const close=()=>{closeOv();after&&after()};
+    $("#pl-close").onclick=close;
+    $$("[data-pf]").forEach(el=>el.onclick=()=>{filt=el.dataset.pf;draw()});
+    $$("[data-px]").forEach(el=>el.onclick=()=>{const p=protocols().find(x=>x.id===el.dataset.px);if(p)exportProtocols([p],"protocolo-"+fileSafe(p.name)+".json")});
+    $$("[data-pd]").forEach(el=>el.onclick=()=>{ask=el.dataset.pd;draw()});
+    $$("[data-pdn]").forEach(el=>el.onclick=()=>{ask=null;draw()});
+    $$("[data-pdy]").forEach(el=>el.onclick=()=>{const id=el.dataset.pdy;store.config.protocols=protocols().filter(p=>p.id!==id);Object.values(store.analyses).forEach(x=>{if(x.protocol===id)x.protocol=null});store.saveConfig();store.saveLocal();ask=null;draw();toast("Protocolo excluído")});
+    $$("[data-pe]").forEach(el=>el.onclick=()=>{const p=protocols().find(x=>x.id===el.dataset.pe);if(!p)return;
+      const d=newAnalysis(p.type==="treino"?"treino":"jogo","Protocolo");applyButtons(d,p.buttons);d.protocol=p.id;if(p.pitch!==undefined)d.pitch=p.pitch;if(p.pitchCfg)d.pitchCfg=Object.assign({},p.pitchCfg);
+      openButtonEditor({draft:d,after:()=>openProtoList(after)})});
+    $("#pl-import").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;const r=await importProtocolsFile(f);if(r)draw()};
+  };
+  draw();
+}
 function protoSelHTML(a){const list=protocols().filter(p=>(p.type||a.type)===a.type);
   return `<select class="protosel" id="protosel" aria-label="Protocolo" ${list.length?"":"disabled"}><option value="" ${list.some(p=>p.id===a.protocol)?"":"selected"} disabled>${list.length?"Protocolo…":"Nenhum protocolo de "+a.type}</option>${list.map(p=>`<option value="${p.id}" ${a.protocol===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select>`}
 function wireProtoSel(a){const el=$("#protosel");if(!el)return;el.onchange=e=>{const pr=protocols().find(p=>p.id===e.target.value);if(!pr)return;applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg);store.save(a);renderPad();renderLog();toast("Protocolo: "+pr.name)}}
