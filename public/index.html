@@ -215,6 +215,9 @@ details.data[open] summary::after{content:"–"}
 .log-scroll{max-height:520px;overflow:auto}
 .log-scroll table{min-width:900px}
 .log-scroll td input{min-width:90px}
+.log-scroll th.th-lbl{width:1%;white-space:nowrap;letter-spacing:.02em}
+.log-scroll th.th-note,.log-scroll td.td-note{width:30%}
+.log-scroll td.td-note textarea{width:100%;min-width:210px;min-height:64px;padding:6px 8px;font-size:15px;line-height:1.35;resize:vertical;font-family:inherit}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 10px;font-weight:600;border-bottom:1px solid var(--line);z-index:1}
 td{border-top:1px solid var(--line);padding:6px 10px;vertical-align:middle}
@@ -1180,7 +1183,7 @@ function addTag(tag){
 /* Every tag can be labelled with one key behaviour and one concept, whatever button fired it. The lists come from the analysis buttons; a stored value that no longer exists stays selectable. */
 function labelSel(a,t,field,group){
   const names=a.buttons.filter(b=>b.kind!=="descritor"&&grp(b)===group).map(b=>b.name);const v=t[field]||"";if(v&&!names.includes(v))names.push(v);
-  return `<select data-lbl="${field}" data-id="${t.id}" aria-label="${esc(group)}" style="padding:4px 6px;font-size:12px;width:auto;max-width:170px"><option value="">—</option>${names.map(n=>`<option value="${esc(n)}" ${v===n?"selected":""}>${esc(n)}</option>`).join("")}</select>`;
+  return `<select data-lbl="${field}" data-id="${t.id}" aria-label="${esc(group)}" style="padding:3px 4px;font-size:11px;width:auto;max-width:110px"><option value="">—</option>${names.map(n=>`<option value="${esc(n)}" ${v===n?"selected":""}>${esc(n)}</option>`).join("")}</select>`;
 }
 function renderLog(){
   const a=cur;
@@ -1200,14 +1203,14 @@ function renderLog(){
     ${t.sync?"<td></td>":athCell(t)}${rmCell(t)}</tr>`).join("")}</tbody></table>`
     :`<div class="empty" style="margin:12px">Nenhum tag ainda. Inicie ${W(a).single?"a sessão":"o período"} e use os botões.</div>`;
   }else
-  $("#logscroll").innerHTML=rows.length?`<table><thead><tr><th>Tag</th><th>Início</th><th>Fim</th><th>Atleta</th><th>${a.type==="jogo"?"Posição / Qualificação":"Qualificação"}</th>${W(a).single?"":`<th>${W(a).N}</th>`}<th>Comportamento-chave</th><th>Conceito</th><th>Nota</th><th></th></tr></thead><tbody>${rows.map(t=>`
+  $("#logscroll").innerHTML=rows.length?`<table><thead><tr><th>Tag</th><th>Início</th><th>Fim</th><th>Atleta</th><th>${a.type==="jogo"?"Posição / Qualificação":"Qualificação"}</th>${W(a).single?"":`<th>${W(a).N}</th>`}<th class="th-lbl">Comport.-chave</th><th class="th-lbl">Conceito</th><th class="th-note">Nota</th><th></th></tr></thead><tbody>${rows.map(t=>`
     <tr><td><span class="sw ${t.sync?"sync":""}" style="background:${esc(color(t.btn))}"></span>${esc(t.code)}${(t.desc||[]).length?`<div>${t.desc.map(d=>`<span class="dpill">${esc(d)}</span>`).join("")}</div>`:""}</td>
     <td class="num">${fmtS(t.start)}</td><td class="num">${fmtS(t.end)}</td>
     ${t.sync?`<td class="muted" colspan="2">apito inicial</td>`:`<td><div class="athcell">${t.scope&&!(t.athletes||[]).length?`<span class="pill">${esc(t.scope)}</span>`:""}${tagAthLabels(t).map(l=>`<span class="tagath">${esc(l)}</span>`).join("")}<button class="btn sm ghost" type="button" data-tath="${t.id}" aria-label="Escolher atletas">${(t.athletes||[]).length?"✎":"+ atleta"}</button></div></td>
     ${a.type==="jogo"&&grp(btnOf(a,t.btn))!==KEY_GROUP?`<td><button class="btn sm ghost" type="button" data-tpos="${t.id}" aria-label="Posição no campo">${t.pos?`<span class="num">${t.pos.x} · ${t.pos.y}</span>`:"+ posição"}</button></td>`:`<td><select data-rate="${t.id}" aria-label="Avaliação" style="padding:4px 6px;font-size:12px;width:auto"><option value="">—</option><option value="Reforço" ${t.rating==="Reforço"||t.rating==="Ação positiva"?"selected":""}>Reforço</option><option value="Ajuste" ${t.rating==="Ajuste"?"selected":""}>Ajuste</option></select></td>`}`}
     ${W(a).single?"":`<td>${esc(t.session||"—")}${t.st!=null&&t.session?` <span class="muted num">${fmtS(t.st)}</span>`:""}</td>`}
     ${t.sync?`<td colspan="2"></td>`:`<td>${labelSel(a,t,"kb",KEY_GROUP)}</td><td>${labelSel(a,t,"cp","Conceitos")}</td>`}
-    <td><input type="text" data-note="${t.id}" value="${esc(t.note||"")}" aria-label="Nota" placeholder="nota"></td>
+    <td class="td-note"><textarea data-note="${t.id}" rows="2" aria-label="Nota" placeholder="nota">${esc(t.note||"")}</textarea></td>
     <td><button class="btn sm ghost danger" type="button" data-rm="${t.id}" aria-label="Apagar tag">✕</button></td></tr>`).join("")}</tbody></table>`
     :`<div class="empty" style="margin:12px">Nenhum tag ainda. Inicie ${W(a).single?"a sessão":"o período"} e use os botões.</div>`;
   $$("[data-note]").forEach(el=>el.oninput=()=>{const t=a.tags.find(x=>x.id===el.dataset.note);if(t){t.note=el.value;store.save(a)}});
