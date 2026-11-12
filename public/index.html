@@ -93,6 +93,17 @@ label.f>span{font-weight:600}
 .typebadge{font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:3px 7px}
 .typebadge.jogo{background:var(--accent);color:var(--accent-fg)}
 .typebadge.treino{background:var(--fg);color:var(--bg)}
+.fbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}
+.fchip{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13.5px;cursor:pointer;font-weight:600}
+.fchip .n{color:var(--muted);font-weight:500;margin-left:2px}
+.fchip[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.fchip[aria-pressed=true] .n{color:inherit;opacity:.7}
+@media (pointer:coarse){.fchip{padding:9px 14px}}
+.fnew{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.fnew input{width:180px}
+.fhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border:1px dashed var(--line);border-radius:var(--r)}
+.itemact{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.itemact .fsel{width:auto;max-width:150px;padding:5px 8px;font-size:12.5px}
 .pill{display:inline-block;font-size:12px;border-radius:99px;padding:1px 8px;background:var(--surface-2);color:var(--muted);font-weight:600}
 .pill.live{background:var(--accent);color:var(--accent-fg)}
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:28px;text-align:center;color:var(--muted)}
@@ -539,6 +550,13 @@ const fmtS=sec=>fmt(sec*1000);
 /* ---------------- app state ---------------- */
 let cur=null; // analysis open
 let newType="jogo";
+/* Folders: a plain name on each analysis (a.folder); the list of names lives in config so empty folders persist and sync. */
+let homeFolder="";let folderEdit=null;let folderMove=null;
+const NOFOLDER="::sem-pasta::";
+function folders(){const set=new Set((store.config.folders||[]).filter(Boolean));Object.values(store.analyses).forEach(a=>{if(a.folder)set.add(a.folder)});return [...set].sort((x,y)=>x.localeCompare(y,"pt-BR"))}
+function addFolder(name){name=String(name||"").trim().slice(0,60);if(!name)return "";const f=store.config.folders||(store.config.folders=[]);if(!f.includes(name))f.push(name);store.saveConfig();return name}
+function renameFolder(oldN,newN){newN=String(newN||"").trim().slice(0,60);if(!newN||newN===oldN)return oldN;store.config.folders=(store.config.folders||[]).filter(x=>x!==oldN&&x!==newN).concat(newN);Object.values(store.analyses).forEach(a=>{if(a.folder===oldN){a.folder=newN;store.save(a)}});store.saveConfig();return newN}
+function deleteFolder(name){store.config.folders=(store.config.folders||[]).filter(x=>x!==name);Object.values(store.analyses).forEach(a=>{if(a.folder===name){delete a.folder;store.save(a)}});store.saveConfig()}
 let tick=null;
 
 /* theme: viewer's choice stored per browser; "system" removes the attribute */
@@ -557,7 +575,13 @@ function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTi
 /* ================= START SCREEN ================= */
 function renderHome(){
   cur=null;stopTick();
-  const list=Object.values(store.analyses).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  const all=Object.values(store.analyses).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  const fl=folders();if(homeFolder&&homeFolder!==NOFOLDER&&!fl.includes(homeFolder))homeFolder="";
+  const list=homeFolder===""?all:homeFolder===NOFOLDER?all.filter(a=>!a.folder):all.filter(a=>a.folder===homeFolder);
+  const cnt=f=>all.filter(a=>f===NOFOLDER?!a.folder:a.folder===f).length;
+  const chip=(v,l,n)=>`<button type="button" class="fchip" data-hf="${esc(v)}" aria-pressed="${homeFolder===v}">${v&&v!==NOFOLDER?"📁 ":""}${esc(l)} <span class="n">${n}</span></button>`;
+  const folderOpts=sel=>`<option value="">Sem pasta</option>${fl.map(f=>`<option value="${esc(f)}" ${sel===f?"selected":""}>${esc(f)}</option>`).join("")}<option value="${NOFOLDER}new">+ Nova pasta…</option>`;
+  const cf=homeFolder&&homeFolder!==NOFOLDER?homeFolder:"";
   $("#app").innerHTML=`
   <div class="wrap">
     <header class="home-head">
@@ -584,6 +608,7 @@ function renderHome(){
             <label class="f"><span>Rodada</span><input type="text" id="nf-rod" placeholder="Ex.: 5ª rodada"></label>
           </div>`:""}
           ${protocols().some(p=>(p.type||newType)===newType)?`<label class="f"><span>Protocolo de botões</span><select id="nf-proto"><option value="">Padrão de ${newType}</option>${protocols().filter(p=>(p.type||newType)===newType).map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.buttons.length} botões</option>`).join("")}</select></label>`:""}
+          <label class="f"><span>Pasta</span><select id="nf-folder">${folderOpts(cf)}</select></label>
           <button class="btn primary" type="submit">Criar análise</button>
           <button class="btn" type="button" id="nf-newproto">+ Criar protocolo de ${newType}</button>
           
@@ -591,6 +616,8 @@ function renderHome(){
       </section>
       <section>
         <div class="section-h" style="margin-top:0"><h2>Análises</h2><span class="muted">${list.length} ${list.length===1?"análise":"análises"}</span></div>
+        <div class="fbar" role="group" aria-label="Pastas">${chip("","Todas",all.length)}${fl.map(f=>chip(f,f,cnt(f))).join("")}${fl.length&&cnt(NOFOLDER)?chip(NOFOLDER,"Sem pasta",cnt(NOFOLDER)):""}${folderEdit==="new"?`<form class="fnew" id="fnewform"><input type="text" id="fnew-name" placeholder="Nome da pasta" maxlength="60" aria-label="Nome da pasta"><button class="btn sm primary" type="submit">Criar</button><button class="btn sm ghost" type="button" id="fnew-x">Cancelar</button></form>`:`<button type="button" class="btn sm" id="fnew">+ Nova pasta</button>`}</div>
+        ${cf?`<div class="fhead">${folderEdit==="ren"?`<form class="fnew" id="frenform"><input type="text" id="fren-name" value="${esc(cf)}" maxlength="60" aria-label="Novo nome da pasta"><button class="btn sm primary" type="submit">Salvar</button><button class="btn sm ghost" type="button" id="fren-x">Cancelar</button></form>`:folderEdit==="del"?`<span>Apagar a pasta "${esc(cf)}"? As análises não são apagadas, voltam para Sem pasta.</span><button class="btn sm danger" type="button" id="fdel-yes">Apagar pasta</button><button class="btn sm" type="button" id="fdel-no">Cancelar</button>`:`<strong>📁 ${esc(cf)}</strong><span style="flex:1"></span><button class="btn sm ghost" type="button" id="fren">Renomear</button><button class="btn sm ghost danger" type="button" id="fdel">Apagar pasta</button>`}</div>`:""}
         <div class="list" id="alist">
           ${list.length?list.map(a=>{
             const live=a.clock&&a.clock.general.running;
@@ -598,8 +625,8 @@ function renderHome(){
             return `<div class="item" data-open="${a.id}" tabindex="0" role="button">
               <span class="typebadge ${a.type}">${a.type}</span>
               <div style="min-width:0"><h3>${esc(a.title)}</h3><div class="meta">${d}${a.info&&a.info.categoria?" · "+esc(a.info.categoria):""}${a.type==="jogo"&&a.info&&a.info.competicao?" · "+esc(a.info.competicao):""}${a.type==="jogo"&&a.info&&a.info.rodada?" · "+esc(a.info.rodada):""} · ${a.tags.length} tags · <span class="num" title="Tempo total da tarefa">⏱ ${fmt(taskMs(a))}</span> ${live?'<span class="pill live">ao vivo</span>':""} ${a.example?'<span class="pill">exemplo</span>':""}${a.protocol&&protocols().find(p=>p.id===a.protocol)?` <span class="pill">${esc(protocols().find(p=>p.id===a.protocol).name)}</span>`:""}</div></div>
-              <span class="confirm" data-delwrap="${a.id}"><button class="btn sm ghost danger" data-del="${a.id}" type="button">Apagar</button></span>
-            </div>`}).join(""):`<div class="empty">Nenhuma análise ainda. Crie a primeira ao lado.</div>`}
+              <div class="itemact"><select class="fsel" data-fold="${a.id}" aria-label="Pasta da análise">${folderOpts(a.folder||"")}</select><span class="confirm" data-delwrap="${a.id}"><button class="btn sm ghost danger" data-del="${a.id}" type="button">Apagar</button></span></div>
+            </div>`}).join(""):`<div class="empty">${all.length?"Nenhuma análise nesta pasta. Crie uma ao lado ou mova pelo seletor de pasta de cada análise.":"Nenhuma análise ainda. Crie a primeira ao lado."}</div>`}
         </div>
       </section>
     </div>
@@ -610,9 +637,28 @@ function renderHome(){
   $("#newform").onsubmit=e=>{e.preventDefault();
     const a=newAnalysis(newType,$("#nf-title").value.trim(),Object.assign({data:$("#nf-date").value,categoria:$("#nf-cat").value.trim()},newType==="jogo"?{competicao:($("#nf-comp")||{value:""}).value.trim(),rodada:($("#nf-rod")||{value:""}).value.trim()}:{}));
     const ps=$("#nf-proto");if(ps&&ps.value){const pr=protocols().find(x=>x.id===ps.value);if(pr){applyButtons(a,pr.buttons);a.protocol=pr.id;if(pr.pitch!==undefined)a.pitch=pr.pitch;if(pr.pitchCfg)a.pitchCfg=Object.assign({},pr.pitchCfg)}}
+    const nfF=$("#nf-folder").value;if(nfF&&!nfF.startsWith(NOFOLDER))a.folder=nfF;
     store.save(a);openAnalysis(a.id)};
+  const keepForm=fn=>{const t=$("#nf-title").value,c=$("#nf-cat").value,d=$("#nf-date").value;fn();renderHome();$("#nf-title").value=t;$("#nf-cat").value=c;$("#nf-date").value=d};
+  const askNew=mv=>{keepForm(()=>{folderEdit="new";folderMove=mv});const i=$("#fnew-name");i.focus();i.scrollIntoView({block:"nearest"})};
+  $$("[data-hf]").forEach(b=>b.onclick=()=>keepForm(()=>{homeFolder=b.dataset.hf;folderEdit=null;folderMove=null}));
+  if($("#fnew"))$("#fnew").onclick=()=>askNew(null);
+  if($("#fnew-x"))$("#fnew-x").onclick=()=>keepForm(()=>{folderEdit=null;folderMove=null});
+  if($("#fnewform"))$("#fnewform").onsubmit=e=>{e.preventDefault();const n=addFolder($("#fnew-name").value);if(!n)return;
+    const mv=folderMove&&store.analyses[folderMove];if(mv){mv.folder=n;store.save(mv)}
+    keepForm(()=>{folderEdit=null;folderMove=null;homeFolder=n});toast(mv?`Pasta criada e análise movida para ${n}`:"Pasta criada")};
+  if($("#fren"))$("#fren").onclick=()=>{keepForm(()=>{folderEdit="ren"});$("#fren-name").select()};
+  if($("#fren-x"))$("#fren-x").onclick=()=>keepForm(()=>{folderEdit=null});
+  if($("#frenform"))$("#frenform").onsubmit=e=>{e.preventDefault();const n=renameFolder(cf,$("#fren-name").value);keepForm(()=>{folderEdit=null;homeFolder=n})};
+  if($("#fdel"))$("#fdel").onclick=()=>keepForm(()=>{folderEdit="del"});
+  if($("#fdel-no"))$("#fdel-no").onclick=()=>keepForm(()=>{folderEdit=null});
+  if($("#fdel-yes"))$("#fdel-yes").onclick=()=>{deleteFolder(cf);keepForm(()=>{folderEdit=null;homeFolder=""});toast("Pasta apagada")};
+  $("#nf-folder").onchange=e=>{if(e.target.value.startsWith(NOFOLDER))askNew(null)};
+  $$("[data-fold]").forEach(sel=>{sel.onclick=e=>e.stopPropagation();sel.onkeydown=e=>e.stopPropagation();sel.onchange=()=>{const a=store.analyses[sel.dataset.fold];if(!a)return;const v=sel.value;
+    if(v.startsWith(NOFOLDER)){sel.value=a.folder||"";askNew(a.id);return}
+    if(v)a.folder=v;else delete a.folder;store.save(a);keepForm(()=>{});toast(v?`Movida para a pasta ${v}`:"Movida para Sem pasta")}});
   $$("[data-open]").forEach(el=>{
-    el.onclick=e=>{if(e.target.closest("[data-delwrap]"))return;openAnalysis(el.dataset.open)};
+    el.onclick=e=>{if(e.target.closest("[data-delwrap],.itemact"))return;openAnalysis(el.dataset.open)};
     el.onkeydown=e=>{if((e.key==="Enter"||e.key===" ")&&e.target===el){e.preventDefault();openAnalysis(el.dataset.open)}};
   });
   $$("[data-del]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.del,w=b.parentElement;
